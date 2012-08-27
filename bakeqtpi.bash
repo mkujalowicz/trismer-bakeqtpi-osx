@@ -11,6 +11,8 @@ RASPBIAN_HTTP=http://ftp.snt.utwente.nl/pub/software/rpi/images/raspbian/2012-08
 RASPBIAN_TORRENT=http://downloads.raspberrypi.org/images/raspbian/2012-08-16-wheezy-raspbian/2012-08-16-wheezy-raspbian.zip.torrent
 RASPBIAN_FILE=2012-08-16-wheezy-raspbian
 
+CUSTOM_RASPBIAN=""
+
 CC_GIT="gitorious.org/cross-compile-tools/cross-compile-tools.git"
 QT_GIT="gitorious.org/qt/qt5.git"
 GIT=GIT
@@ -31,11 +33,12 @@ do
 			echo "Usage:"
 			echo "		./bakeqtpi.bash [options]"
 			echo "Options:"
-			echo "		--http		Tells git and init-repository to use http(s)"
-			echo "		--httppi 	Tells the script to download the Raspbian image using http/wget"
-			echo "		--torrentpi	Tells the script to download the Raspbian image using torrent/ctorrent"
-			echo "		-v, --version	Version Info"
-			echo "		-h, --help	Help and usage info"
+			echo "		--http			Tells git and init-repository to use http(s)"
+			echo "		--httppi 		Tells the script to download the Raspbian image using http/wget"
+			echo "		--torrentpi		Tells the script to download the Raspbian image using torrent/ctorrent"
+			echo "		--raspbian <path>	Use custom raspbian"
+			echo "		-v, --version		Version Info"
+			echo "		-h, --help		Help and usage info"
 			exit
 			;;
 		-v | --version)
@@ -51,6 +54,10 @@ do
 			;;
 		--torrentpi)
 			TORRENT=1
+			;;
+		--raspbian)
+			shift
+			CUSTOM_RASPBIAN=$1
 			;;
 	
 		# Special cases
@@ -81,6 +88,8 @@ do
 
 	shift
 done
+
+echo "Using Raspbian image at $CUSTOM_RASPBIAN"
 
 if [ "$GIT" == "HTTPS" ]; then
 	CC_GIT="https://git."$CC_GIT
@@ -125,34 +134,40 @@ function error {
 function downloadAndMountPi {
 	cd $OPT
 
-	if [ "$TORRENT" == 1 ]; then
-		dl="T"
-	elif [ "$HTTPPI" == 1 ];then
-		dl="H"
-	else
-		echo "Would you like to download the Raspbian image using HTTP(H) or ctorrent(T)"
-		read -e dl
+	if [ "$CUSTOM_RASPBIAN" == "" ]; then
+		if [ "$TORRENT" == 1 ]; then
+			dl="T"
+		elif [ "$HTTPPI" == 1 ];then
+			dl="H"
+		else
+			echo "Would you like to download the Raspbian image using HTTP(H) or ctorrent(T)"
+			read -e dl
+	
+			while [[ ! $dl =~ [TtHh] ]]; do
+				echo "Please type H for HTTP or T for ctorrent"
+				read dl
+			done
+		fi
+	
+		if [[ $dl =~ [Hh] ]]; then
+			wget -c $RASPBIAN_HTTP || error 2
+		else
+			wget $RASPBIAN_TORRENT || error 2
+			ctorrent -a -e - $RASPBIAN_FILE.zip.torrent || error 2
+		fi
 
-		while [[ ! $dl =~ [TtHh] ]]; do
-			echo "Please type H for HTTP or T for ctorrent"
-			read dl
-		done
+		unzip $RASPBIAN_FILE.zip || error 2
+		RASPBIAN_IMG=$RASPBIAN_FILE.img
+	else
+		RASPBIAN_IMG=$CUSTOM_RASPBIAN
 	fi
 
-	if [[ $dl =~ [Hh] ]]; then
-		wget -c $RASPBIAN_HTTP || error 2
-	else
-		wget $RASPBIAN_TORRENT || error 2
-		ctorrent -a -e - $RASPBIAN_FILE.zip.torrent || error 2
-	fi
-
-	unzip $RASPBIAN_FILE.zip || error 2
 	if [ ! -d $MOUNT ]; then
 		sudo mkdir $MOUNT || error 3
 	else
 		sudo umount $MOUNT
 	fi
-	sudo mount -o loop,offset=62914560 $RASPBIAN_FILE.img $MOUNT || error 3
+	sudo mount -o loop,offset=62914560 $RASPBIAN_IMG $MOUNT || error 3
 }
 
 #Download and extract cross compiler and tools
