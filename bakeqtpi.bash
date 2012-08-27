@@ -16,6 +16,10 @@ QT_GIT="gitorious.org/qt/qt5.git"
 GIT=GIT
 INITREPOARGS="--no-webkit -f"
 
+CORES=`cat /proc/cpuinfo | grep "cpu cores" -m 1 | awk '{print $4}'`
+if [ ! `echo $CORES | awk '$1+0==$1'` ]; then
+	CORES = 1
+fi
 
 #Parse arguments
 while test $# -gt 0
@@ -191,11 +195,7 @@ function configureandmakeqtbase {
 		./configure -opengl es2 -device linux-rasp-pi-g++ -device-option CROSS_COMPILE=$CC/bin/arm-linux-gnueabihf- -sysroot $MOUNT -opensource -confirm-license -optimized-qmake -reduce-relocations -reduce-exports -release -make libs -prefix /usr/local/qt5pi -nomake examples -nomake tests -no-pch && touch $OPT/qt5/qtbase/.CONFIGURED || error 9
 	fi
 	CORES=`cat /proc/cpuinfo | grep "cpu cores" -m 1 | awk '{print $4}'`
-	if [ `echo $CORES | awk '$1+0==$1'` ]; then
-		make -j $CORES || error 10
-	else
-		make || error 10
-	fi
+	make -j $CORES || error 10
 }
 
 function installqtbase {
@@ -206,13 +206,13 @@ function installqtbase {
 function makemodules {
 	for i in qtimageformats qtsvg qtjsbackend qtscript qtxmlpatterns qtdeclarative qtsensors qt3d qtgraphicaleffects qtjsondb qtlocation qtquick1 qtsystems qtmultimedia
 	do
-		cd $OPT/qt5/$i && echo "Building $i" && sleep 3 && /usr/local/qt5pi/bin/qmake . && make -j5 && sudo make install && touch .COMPILED
+		cd $OPT/qt5/$i && echo "Building $i" && sleep 3 && /usr/local/qt5pi/bin/qmake . && make -j $CORES && sudo make install && touch .COMPILED
 		cd $OPT/qt5/
 	done
 	
 	for i in qtimageformats qtsvg qtjsbackend qtscript qtxmlpatterns qtdeclarative qtsensors qt3d qtgraphicaleffects qtjsondb qtlocation qtquick1 qtsystems qtmultimedia
 	do
-		if [ -e $OPT/qt5/$i/.COMPILED ]
+		if [ -e "$OPT/qt5/$i/.COMPILED" ]
 		then
 			echo "Compiled $i"
 		else
@@ -230,4 +230,5 @@ dlcc
 dlqt
 prepcctools
 configureandmakeqtbase
+installqtbase
 makemodules
