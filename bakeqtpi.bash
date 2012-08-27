@@ -16,15 +16,66 @@ QT_GIT="gitorious.org/qt/qt5.git"
 GIT=GIT
 INITREPOARGS="--no-webkit -f"
 
-while getopts ":h" opt; do
-  case $opt in
-    h)
-      GIT=HTTPS
-      ;;
-    \?)
-      echo "Invalid option: -$OPTARG" >&2
-      ;;
-  esac
+
+#Parse arguments
+while test $# -gt 0
+do
+	case $1 in
+		# Normal option processing
+		-h | --help)
+			# usage and help
+			echo "Usage:"
+			echo "		./bakeqtpi.bash [options]"
+			echo "Options:"
+			echo "		--http		Tells git and init-repository to use http(s)"
+			echo "		--httppi 	Tells the script to download the Raspbian image using http/wget"
+			echo "		--torrentpi	Tells the script to download the Raspbian image using torrent/ctorrent"
+			echo "		-v, --version	Version Info"
+			echo "		-h, --help	Help and usage info"
+			exit
+			;;
+		-v | --version)
+			# version info
+			echo "Version 0.1"
+			exit
+			;;
+		--http)
+			GIT=HTTPS
+			;;
+		--httppi)
+			HTTPPI=1
+			;;
+		--torrentpi)
+			TORRENT=1
+			;;
+	
+		# Special cases
+		--)
+			break
+			;;
+		--*)
+			# error unknown (long) option $1
+			;;
+		-?)
+			# error unknown (short) option $1
+			;;
+	
+		# FUN STUFF HERE:
+		# Split apart combined short options
+		-*)
+			split=$1
+			shift
+			set -- $(echo "$split" | cut -c 2- | sed 's/./-& /g') "$@"
+			continue
+			;;
+	
+		# Done with options
+		*)
+			break
+			;;
+	esac
+
+	shift
 done
 
 if [ "$GIT" == "HTTPS" ]; then
@@ -69,13 +120,20 @@ function error {
 
 function downloadAndMountPi {
 	cd $OPT
-	echo "Would you like to download the Raspbian image using HTTP(H) or ctorrent(T)"
-	read -e dl
 
-	while [[ ! $dl =~ [TtHh] ]]; do
-		echo "Please type H for HTTP or T for ctorrent"
-		read dl
-	done
+	if [ "$TORRENT" == 1 ]; then
+		dl="T"
+	elif [ "$HTTPPI" == 1 ];then
+		dl="H"
+	else
+		echo "Would you like to download the Raspbian image using HTTP(H) or ctorrent(T)"
+		read -e dl
+
+		while [[ ! $dl =~ [TtHh] ]]; do
+			echo "Please type H for HTTP or T for ctorrent"
+			read dl
+		done
+	fi
 
 	if [[ $dl =~ [Hh] ]]; then
 		wget -c $RASPBIAN_HTTP || error 2
@@ -129,7 +187,9 @@ function prepcctools {
 
 function configureandmakeqtbase {
 	cd $OPT/qt5/qtbase
-	./configure -opengl es2 -device linux-rasp-pi-g++ -device-option CROSS_COMPILE=$CC/bin/arm-linux-gnueabihf- -sysroot $MOUNT -opensource -confirm-license -optimized-qmake -reduce-relocations -reduce-exports -release -make libs -prefix /usr/local/qt5pi -nomake examples -nomake tests -no-pch || error 9
+	if [ ! -e $OPT/qt5/qtbase/.CONFIGURED ]; then
+		./configure -opengl es2 -device linux-rasp-pi-g++ -device-option CROSS_COMPILE=$CC/bin/arm-linux-gnueabihf- -sysroot $MOUNT -opensource -confirm-license -optimized-qmake -reduce-relocations -reduce-exports -release -make libs -prefix /usr/local/qt5pi -nomake examples -nomake tests -no-pch && touch $OPT/qt5/qtbase/.CONFIGURED || error 9
+	fi
 	CORES=`cat /proc/cpuinfo | grep "cpu cores" -m 1 | awk '{print $4}'`
 	if [ `echo $CORES | awk '$1+0==$1'` ]; then
 		make -j $CORES || error 10
