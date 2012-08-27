@@ -1,5 +1,6 @@
 #!/bin/bash
 #This script will download, set up, compile QT5, and set up the SDCard image ready to use.
+#Pass -h to use https for git
 
 OPT=~/opt
 CC=$OPT/gcc-4.7-linaro-rpi-gnueabihf
@@ -9,6 +10,32 @@ MOUNT=/mnt/rasp-pi-rootfs
 RASPBIAN_HTTP=http://ftp.snt.utwente.nl/pub/software/rpi/images/raspbian/2012-08-16-wheezy-raspbian/2012-08-16-wheezy-raspbian.zip
 RASPBIAN_TORRENT=http://downloads.raspberrypi.org/images/raspbian/2012-08-16-wheezy-raspbian/2012-08-16-wheezy-raspbian.zip.torrent
 RASPBIAN_FILE=2012-08-16-wheezy-raspbian
+
+CC_GIT="gitorious.org/cross-compile-tools/cross-compile-tools.git"
+QT_GIT="gitorious.org/qt/qt5.git"
+GIT=GIT
+INITREPOARGS="--no-webkit -f"
+
+while getopts ":h" opt; do
+  case $opt in
+    h)
+      GIT=HTTPS
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+      ;;
+  esac
+done
+
+if [ "$GIT" == "HTTPS" ]; then
+	CC_GIT="https://git."$CC_GIT
+	QT_GIT="https://git."$QT_GIT
+	INITREPOARGS="$INITREPOARGS --http"
+else
+	CC_GIT="git://"$CC_GIT
+	QT_GIT="git://"$QT_GIT
+fi
+
 
 function error {
 	case "$1" in
@@ -88,7 +115,7 @@ function dlqt {
 	cd qt5
 	while [ ! -e $OPT/qt5/.initialised ]
 	do
-		./init-repository --no-webkit -f && touch $OPT/qt5/.initialised
+		./init-repository $INITREPOARGS && touch $OPT/qt5/.initialised
 	done || error 7
 	cd $OPT/qt5/qtjsbackend
 	git fetch https://codereview.qt-project.org/p/qt/qtjsbackend refs/changes/56/27256/4 && git cherry-pick FETCH_HEAD
