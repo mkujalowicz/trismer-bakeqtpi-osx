@@ -6,6 +6,7 @@ OPT=~/opt
 CC=$OPT/gcc-4.7-linaro-rpi-gnueabihf
 CCT=$OPT/cross-compile-tools
 MOUNT=/mnt/rasp-pi-rootfs
+QTBASE=$OPT/qt5
 
 RASPBIAN_HTTP=http://ftp.snt.utwente.nl/pub/software/rpi/images/raspbian/2012-08-16-wheezy-raspbian/2012-08-16-wheezy-raspbian.zip
 RASPBIAN_TORRENT=http://downloads.raspberrypi.org/images/raspbian/2012-08-16-wheezy-raspbian/2012-08-16-wheezy-raspbian.zip.torrent
@@ -36,7 +37,9 @@ do
 			echo "		--http			Tells git and init-repository to use http(s)"
 			echo "		--httppi 		Tells the script to download the Raspbian image using http/wget"
 			echo "		--torrentpi		Tells the script to download the Raspbian image using torrent/ctorrent"
-			echo "		--raspbian <path>	Use custom raspbian"
+			echo "		--raspbian <path>	Use custom raspbian. Note, you can point this to your SD card, assuming it's a standard" 
+			echo "						raspbian sd card using --raspbian /dev/sdX (Don't put the partition number in)"
+			echo "		--confclean		Runs 'make confclean' before running ./configure"
 			echo "		-v, --version		Version Info"
 			echo "		-h, --help		Help and usage info"
 			exit
@@ -58,6 +61,9 @@ do
 		--raspbian)
 			shift
 			CUSTOM_RASPBIAN=$1
+			;;
+		--confclean)
+			CONFCLEAN=1
 			;;
 	
 		# Special cases
@@ -187,7 +193,10 @@ function dlqt {
 	if [ ! -d $OPT/qt5/.git ]; then
 		git clone git://gitorious.org/qt/qt5.git || error 6
 	else
-		cd $OPT/qt5/ && git pull && cd ..
+		cd $OPT/qt5/ && git pull 
+		cd $CCT
+		./syncQt5
+		cd $OPT
 	fi
 	cd qt5
 	while [ ! -e $OPT/qt5/.initialised ]
@@ -206,8 +215,13 @@ function prepcctools {
 
 function configureandmakeqtbase {
 	cd $OPT/qt5/qtbase
+	if [ "$CONFCLEAN" == 1 ]; then
+		rm -f $OPT/qt5/qtbase/.CONFIGURED
+		cd $OPT/qt5/qtbase
+		make confclean
+	fi
 	if [ ! -e $OPT/qt5/qtbase/.CONFIGURED ]; then
-		./configure -opengl es2 -device linux-rasp-pi-g++ -device-option CROSS_COMPILE=$CC/bin/arm-linux-gnueabihf- -sysroot $MOUNT -opensource -confirm-license -optimized-qmake -reduce-relocations -reduce-exports -release -make libs -prefix /usr/local/qt5pi -nomake examples -nomake tests -no-pch && touch $OPT/qt5/qtbase/.CONFIGURED || error 9
+		./configure -opengl es2 -device linux-rasp-pi-g++ -device-option CROSS_COMPILE=$CC/bin/arm-linux-gnueabihf- -sysroot $MOUNT -opensource -confirm-license -optimized-qmake -reduce-relocations -reduce-exports -release -make libs -prefix /usr/local/qt5pi -make libs -no-pch && touch $OPT/qt5/qtbase/.CONFIGURED || error 9
 	fi
 	CORES=`cat /proc/cpuinfo | grep "cpu cores" -m 1 | awk '{print $4}'`
 	make -j $CORES || error 10
@@ -216,6 +230,7 @@ function configureandmakeqtbase {
 function installqtbase {
 	cd $OPT/qt5/qtbase
 	sudo make install
+	sudo cp -r /usr/local/qt5pi/mkspecs/ $MOUNTs/usr/local/qt5pi/
 }
 
 function makemodules {
@@ -224,6 +239,16 @@ function makemodules {
 		cd $OPT/qt5/$i && echo "Building $i" && sleep 3 && /usr/local/qt5pi/bin/qmake . && make -j $CORES && sudo make install && touch .COMPILED
 		cd $OPT/qt5/
 	done
+
+#	cd $OPT/qt5/qtdeclarative/tools/qmlscene
+#	/usr/local/qt5pi/bin/qmake .
+#	make -j $CORES
+#	sudo make install
+#
+#	cd $OPT/qt5/qtdeclarative/examples/demos/samegame
+#        /usr/local/qt5pi/bin/qmake .
+#        make -j $CORES
+#        sudo make install
 	
 	for i in qtimageformats qtsvg qtjsbackend qtscript qtxmlpatterns qtdeclarative qtsensors qt3d qtgraphicaleffects qtjsondb qtlocation qtquick1 qtsystems qtmultimedia
 	do
