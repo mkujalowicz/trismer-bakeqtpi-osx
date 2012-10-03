@@ -19,9 +19,10 @@ QT_GIT="gitorious.org/qt/qt5.git"
 GIT=GIT
 INITREPOARGS="--no-webkit -f"
 
-CORES=`cat /proc/cpuinfo | grep "cpu cores" -m 1 | awk '{print $4}'`
-if [ ! `echo $CORES | awk '$1+0==$1'` ]; then
-	CORES = 1
+CORES=`grep -c processor /proc/cpuinfo`
+if [ $CORES -eq 0 ]
+then
+  CORES=1
 fi
 
 #Parse arguments
