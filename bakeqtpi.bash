@@ -19,7 +19,7 @@ QT_GIT="gitorious.org/qt/qt5.git"
 GIT=GIT
 INITREPOARGS="--no-webkit -f"
 
-CORES=`grep -c processor /proc/cpuinfo`
+CORES=`grep -c '^processor' /proc/cpuinfo`
 if [ $CORES -eq 0 ]
 then
   CORES=1
