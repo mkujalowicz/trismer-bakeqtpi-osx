@@ -22,6 +22,8 @@ QT_GIT="gitorious.org/qt/qt5.git"
 GIT=GIT
 INITREPOARGS="--no-webkit -f"
 
+QT_COMPILE_LIST="qtimageformats qtsvg qtjsbackend qtscript qtxmlpatterns qtdeclarative qtsensors qt3d qtgraphicaleffects qtlocation qtquick1 qtsystems qtmultimedia"
+
 CORES=`grep -c '^processor' /proc/cpuinfo`
 if [ $CORES -eq 0 ]
 then
@@ -237,7 +239,7 @@ function installqtbase {
 }
 
 function makemodules {
-	for i in qtimageformats qtsvg qtjsbackend qtscript qtxmlpatterns qtdeclarative qtsensors qt3d qtgraphicaleffects qtjsondb qtlocation qtquick1 qtsystems qtmultimedia
+	for i in $QT_COMPILE_LIST
 	do
 		cd $OPT/qt5/$i && echo "Building $i" && sleep 3 && /usr/local/qt5pi/bin/qmake . && make -j $CORES && sudo make install && touch .COMPILED
 		cd $OPT/qt5/
@@ -253,7 +255,7 @@ function makemodules {
 #        make -j $CORES
 #        sudo make install
 	
-	for i in qtimageformats qtsvg qtjsbackend qtscript qtxmlpatterns qtdeclarative qtsensors qt3d qtgraphicaleffects qtjsondb qtlocation qtquick1 qtsystems qtmultimedia
+	for i in $QT_COMPILE_LIST
 	do
 		if [ -e "$OPT/qt5/$i/.COMPILED" ]
 		then
