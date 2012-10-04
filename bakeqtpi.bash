@@ -8,9 +8,10 @@ CCT=$OPT/cross-compile-tools
 MOUNT=/mnt/rasp-pi-rootfs
 QTBASE=$OPT/qt5
 
-RASPBIAN_HTTP=http://ftp.snt.utwente.nl/pub/software/rpi/images/raspbian/2012-08-16-wheezy-raspbian/2012-08-16-wheezy-raspbian.zip
-RASPBIAN_TORRENT=http://downloads.raspberrypi.org/images/raspbian/2012-08-16-wheezy-raspbian/2012-08-16-wheezy-raspbian.zip.torrent
-RASPBIAN_FILE=2012-08-16-wheezy-raspbian
+RASPBIAN=2012-08-16-wheezy-raspbian
+
+RASPBIAN_HTTP=http://ftp.snt.utwente.nl/pub/software/rpi/images/raspbian/$RASPBIAN/$RASPBIAN.zip
+RASPBIAN_TORRENT=http://downloads.raspberrypi.org/images/raspbian/$RASPBIAN/$RASPBIAN.zip.torrent
 
 CUSTOM_RASPBIAN=""
 
@@ -163,8 +164,8 @@ function downloadAndMountPi {
 			ctorrent -a -e - $RASPBIAN_FILE.zip.torrent || error 2
 		fi
 
-		unzip $RASPBIAN_FILE.zip || error 2
-		RASPBIAN_IMG=$RASPBIAN_FILE.img
+		unzip $RASPBIAN.zip || error 2
+		RASPBIAN_IMG=$RASPBIAN.img
 	else
 		RASPBIAN_IMG=$CUSTOM_RASPBIAN
 	fi
