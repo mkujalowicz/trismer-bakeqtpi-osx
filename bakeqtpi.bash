@@ -8,7 +8,7 @@ CCT=$OPT/cross-compile-tools
 MOUNT=/mnt/rasp-pi-rootfs
 QTBASE=$OPT/qt5
 
-RASPBIAN=2012-08-16-wheezy-raspbian
+RASPBIAN=2012-09-18-wheezy-raspbian
 
 RASPBIAN_HTTP=http://ftp.snt.utwente.nl/pub/software/rpi/images/raspbian/$RASPBIAN/$RASPBIAN.zip
 RASPBIAN_TORRENT=http://downloads.raspberrypi.org/images/raspbian/$RASPBIAN/$RASPBIAN.zip.torrent
