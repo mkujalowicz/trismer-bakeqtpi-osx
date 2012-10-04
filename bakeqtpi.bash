@@ -2,11 +2,14 @@
 #This script will download, set up, compile QT5, and set up the SDCard image ready to use.
 #Pass -h to use https for git
 
+SCRIPT_DIR=$PWD
 OPT=~/opt
-CC=$OPT/gcc-4.7-linaro-rpi-gnueabihf
+CC=$OPT/arm-linux-gnueabihf-osx
 CCT=$OPT/cross-compile-tools
-MOUNT=/mnt/rasp-pi-rootfs
+MOUNT=$OPT/rasp-pi-image
+ROOTFS=$OPT/rasp-pi-rootfs
 QTBASE=$OPT/qt5
+DEBUGFS=/usr/local/Cellar/e2fsprogs/1.42.5/sbin/debugfs
 
 RASPBIAN_HTTP=http://ftp.snt.utwente.nl/pub/software/rpi/images/raspbian/2012-08-16-wheezy-raspbian/2012-08-16-wheezy-raspbian.zip
 RASPBIAN_TORRENT=http://downloads.raspberrypi.org/images/raspbian/2012-08-16-wheezy-raspbian/2012-08-16-wheezy-raspbian.zip.torrent
@@ -168,19 +171,27 @@ function downloadAndMountPi {
 		RASPBIAN_IMG=$CUSTOM_RASPBIAN
 	fi
 
-	if [ ! -d $MOUNT ]; then
-		sudo mkdir $MOUNT || error 3
-	else
-		sudo umount $MOUNT
+	if [ -d $MOUNT ]; then
+		hdiutil detach $MOUNT
 	fi
-	sudo mount -o loop,offset=62914560 $RASPBIAN_IMG $MOUNT || error 3
+        echo "hdiutil attach -mountpoint $SCRIPT_DIR $MOUNT $RASPBIAN_IMG"
+        hdiutil attach -mountpoint $MOUNT $RASPBIAN_IMG || error 3
+        echo "rdump lib $ROOTFS" > $OPT/rdump.lst
+        echo "rdump opt $ROOTFS" >> $OPT/rdump.lst
+        echo "rdump usr $ROOTFS" >> $OPT/rdump.lst
+        echo "rdump var $ROOTFS" >> $OPT/rdump.lst
+        if [ ! -d $ROOTFS ]; then
+        mkdir $ROOTFS
+        $DEBUGFS -f $OPT/rdump.lst /dev/disk2s2 || error 3
+        fi
+	#sudo mount -o loop,offset=62914560 $RASPBIAN_IMG $MOUNT || error 3
 }
 
 #Download and extract cross compiler and tools
 function dlcc {
 	cd $OPT
-	wget -c http://blueocean.qmh-project.org/gcc-4.7-linaro-rpi-gnueabihf.tbz || error 4
-	tar -xf gcc-4.7-linaro-rpi-gnueabihf.tbz || error 5
+	wget -c http://trismer.com/downloads/arm-linux-gnueabihf-osx-2012-08-28.tar.gz || error 4
+	tar -xf arm-linux-gnueabihf-osx-2012-08-28.tar.gz || error 5
 	if [ ! -d $CCT/.git ]; then
 		git clone git://gitorious.org/cross-compile-tools/cross-compile-tools.git || error 4
 	else
@@ -209,7 +220,7 @@ function dlqt {
 
 function prepcctools {
 	cd $CCT
-	./fixQualifiedLibraryPaths $MOUNT $CC/bin/arm-linux-gnueabihf-gcc || error 8
+	./fixQualifiedLibraryPaths $ROOTFS $CC/bin/arm-linux-gnueabihf-gcc || error 8
 	cd $OPT/qt5/qtbase
 }
 
@@ -221,7 +232,7 @@ function configureandmakeqtbase {
 		make confclean
 	fi
 	if [ ! -e $OPT/qt5/qtbase/.CONFIGURED ]; then
-		./configure -opengl es2 -device linux-rasp-pi-g++ -device-option CROSS_COMPILE=$CC/bin/arm-linux-gnueabihf- -sysroot $MOUNT -opensource -confirm-license -optimized-qmake -reduce-relocations -reduce-exports -release -make libs -prefix /usr/local/qt5pi -make libs -no-pch && touch $OPT/qt5/qtbase/.CONFIGURED || error 9
+		./configure -opengl es2 -device linux-rasp-pi-g++ -device-option CROSS_COMPILE=$CC/bin/arm-linux-gnueabihf- -sysroot $ROOTFS -opensource -confirm-license -optimized-qmake -reduce-relocations -reduce-exports -release -make libs -prefix /usr/local/qt5pi -make libs -no-pch && touch $OPT/qt5/qtbase/.CONFIGURED || error 9
 	fi
 	CORES=`cat /proc/cpuinfo | grep "cpu cores" -m 1 | awk '{print $4}'`
 	make -j $CORES || error 10
@@ -230,7 +241,7 @@ function configureandmakeqtbase {
 function installqtbase {
 	cd $OPT/qt5/qtbase
 	sudo make install
-	sudo cp -r /usr/local/qt5pi/mkspecs/ $MOUNTs/usr/local/qt5pi/
+	sudo cp -r /usr/local/qt5pi/mkspecs/ $ROOTFS/usr/local/qt5pi/
 }
 
 function makemodules {
