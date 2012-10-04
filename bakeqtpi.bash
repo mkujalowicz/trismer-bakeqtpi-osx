@@ -163,7 +163,7 @@ function downloadAndMountPi {
 			wget $WGET_OPTS $RASPBIAN_HTTP || error 2
 		else
 			wget $WGET_OPTS $RASPBIAN_TORRENT || error 2
-			ctorrent -a -e - $RASPBIAN_FILE.zip.torrent || error 2
+			ctorrent -a -e - $RASPBIAN.zip.torrent || error 2
 		fi
 
 		unzip $RASPBIAN.zip || error 2
