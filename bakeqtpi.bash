@@ -227,7 +227,6 @@ function configureandmakeqtbase {
 	if [ ! -e $OPT/qt5/qtbase/.CONFIGURED ]; then
 		./configure -opengl es2 -device linux-rasp-pi-g++ -device-option CROSS_COMPILE=$CC/bin/arm-linux-gnueabihf- -sysroot $MOUNT -opensource -confirm-license -optimized-qmake -reduce-relocations -reduce-exports -release -make libs -prefix /usr/local/qt5pi -no-pch && touch $OPT/qt5/qtbase/.CONFIGURED || error 9
 	fi
-	CORES=`cat /proc/cpuinfo | grep "cpu cores" -m 1 | awk '{print $4}'`
 	make -j $CORES || error 10
 }
 
