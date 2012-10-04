@@ -15,6 +15,8 @@ RASPBIAN_TORRENT=http://downloads.raspberrypi.org/images/raspbian/$RASPBIAN/$RAS
 
 CUSTOM_RASPBIAN=""
 
+WGET_OPTS="-nc -c"
+
 CC_GIT="gitorious.org/cross-compile-tools/cross-compile-tools.git"
 QT_GIT="gitorious.org/qt/qt5.git"
 GIT=GIT
@@ -158,9 +160,9 @@ function downloadAndMountPi {
 		fi
 	
 		if [[ $dl =~ [Hh] ]]; then
-			wget -c $RASPBIAN_HTTP || error 2
+			wget $WGET_OPTS $RASPBIAN_HTTP || error 2
 		else
-			wget $RASPBIAN_TORRENT || error 2
+			wget $WGET_OPTS $RASPBIAN_TORRENT || error 2
 			ctorrent -a -e - $RASPBIAN_FILE.zip.torrent || error 2
 		fi
 
