@@ -186,7 +186,7 @@ function dlcc {
 	wget -c http://blueocean.qmh-project.org/gcc-4.7-linaro-rpi-gnueabihf.tbz || error 4
 	tar -xf gcc-4.7-linaro-rpi-gnueabihf.tbz || error 5
 	if [ ! -d $CCT/.git ]; then
-		git clone git://gitorious.org/cross-compile-tools/cross-compile-tools.git || error 4
+		git clone $CC_GIT || error 4
 	else
 		cd $CCT && git pull && cd $OPT
 	fi
@@ -195,7 +195,7 @@ function dlcc {
 function dlqt {
 	cd $OPT
 	if [ ! -d $OPT/qt5/.git ]; then
-		git clone git://gitorious.org/qt/qt5.git || error 6
+		git clone $QT_GIT || error 6
 	else
 		cd $OPT/qt5/ && git pull 
 		cd $CCT
@@ -208,7 +208,7 @@ function dlqt {
 		./init-repository $INITREPOARGS && touch $OPT/qt5/.initialised
 	done || error 7
 	cd $OPT/qt5/qtjsbackend
-	git fetch https://codereview.qt-project.org/p/qt/qtjsbackend refs/changes/56/27256/4 && git cherry-pick FETCH_HEAD
+	#git fetch https://codereview.qt-project.org/p/qt/qtjsbackend refs/changes/56/27256/4 && git cherry-pick FETCH_HEAD
 }
 
 function prepcctools {
@@ -225,7 +225,7 @@ function configureandmakeqtbase {
 		make confclean
 	fi
 	if [ ! -e $OPT/qt5/qtbase/.CONFIGURED ]; then
-		./configure -opengl es2 -device linux-rasp-pi-g++ -device-option CROSS_COMPILE=$CC/bin/arm-linux-gnueabihf- -sysroot $MOUNT -opensource -confirm-license -optimized-qmake -reduce-relocations -reduce-exports -release -make libs -prefix /usr/local/qt5pi -make libs -no-pch && touch $OPT/qt5/qtbase/.CONFIGURED || error 9
+		./configure -opengl es2 -device linux-rasp-pi-g++ -device-option CROSS_COMPILE=$CC/bin/arm-linux-gnueabihf- -sysroot $MOUNT -opensource -confirm-license -optimized-qmake -reduce-relocations -reduce-exports -release -make libs -prefix /usr/local/qt5pi -no-pch && touch $OPT/qt5/qtbase/.CONFIGURED || error 9
 	fi
 	CORES=`cat /proc/cpuinfo | grep "cpu cores" -m 1 | awk '{print $4}'`
 	make -j $CORES || error 10
