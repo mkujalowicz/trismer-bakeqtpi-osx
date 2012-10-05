@@ -10,6 +10,7 @@ MOUNT=$OPT/rasp-pi-image
 ROOTFS=$OPT/rasp-pi-rootfs
 QTBASE=$OPT/qt5
 DEBUGFS=/usr/local/Cellar/e2fsprogs/1.42.5/sbin/debugfs
+CORES=2
 
 RASPBIAN_HTTP=http://ftp.snt.utwente.nl/pub/software/rpi/images/raspbian/2012-08-16-wheezy-raspbian/2012-08-16-wheezy-raspbian.zip
 RASPBIAN_TORRENT=http://downloads.raspberrypi.org/images/raspbian/2012-08-16-wheezy-raspbian/2012-08-16-wheezy-raspbian.zip.torrent
@@ -22,7 +23,6 @@ QT_GIT="gitorious.org/qt/qt5.git"
 GIT=GIT
 INITREPOARGS="--no-webkit -f"
 
-CORES=`cat /proc/cpuinfo | grep "cpu cores" -m 1 | awk '{print $4}'`
 if [ ! `echo $CORES | awk '$1+0==$1'` ]; then
 	CORES = 1
 fi
@@ -234,7 +234,6 @@ function configureandmakeqtbase {
 	if [ ! -e $OPT/qt5/qtbase/.CONFIGURED ]; then
 		./configure -opengl es2 -device linux-rasp-pi-g++ -device-option CROSS_COMPILE=$CC/bin/arm-linux-gnueabihf- -sysroot $ROOTFS -opensource -confirm-license -optimized-qmake -reduce-relocations -reduce-exports -release -make libs -prefix /usr/local/qt5pi -make libs -no-pch && touch $OPT/qt5/qtbase/.CONFIGURED || error 9
 	fi
-	CORES=`cat /proc/cpuinfo | grep "cpu cores" -m 1 | awk '{print $4}'`
 	make -j $CORES || error 10
 }
 
