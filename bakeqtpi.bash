@@ -11,6 +11,7 @@ ROOTFS=$OPT/rasp-pi-rootfs
 QTBASE=$OPT/qt5
 DEBUGFS=/usr/local/Cellar/e2fsprogs/1.42.5/sbin/debugfs
 CORES=2
+QT5PIPREFIX=$OPT/qt5pi
 
 RASPBIAN_HTTP=http://ftp.snt.utwente.nl/pub/software/rpi/images/raspbian/2012-08-16-wheezy-raspbian/2012-08-16-wheezy-raspbian.zip
 RASPBIAN_TORRENT=http://downloads.raspberrypi.org/images/raspbian/2012-08-16-wheezy-raspbian/2012-08-16-wheezy-raspbian.zip.torrent
@@ -232,33 +233,33 @@ function configureandmakeqtbase {
 		make confclean
 	fi
 	if [ ! -e $OPT/qt5/qtbase/.CONFIGURED ]; then
-		./configure -opengl es2 -device linux-rasp-pi-g++ -device-option CROSS_COMPILE=$CC/bin/arm-linux-gnueabihf- -sysroot $ROOTFS -opensource -confirm-license -optimized-qmake -reduce-relocations -reduce-exports -release -make libs -prefix /usr/local/qt5pi -make libs -no-pch && touch $OPT/qt5/qtbase/.CONFIGURED || error 9
+		./configure -opengl es2 -device linux-rasp-pi-g++ -device-option CROSS_COMPILE=$CC/bin/arm-linux-gnueabihf- -sysroot $ROOTFS -opensource -confirm-license -optimized-qmake -reduce-relocations -reduce-exports -release -make libs -prefix $QT5PIPREFIX -make libs -no-pch && touch $OPT/qt5/qtbase/.CONFIGURED || error 9
 	fi
 	make -j $CORES || error 10
 }
 
 function installqtbase {
 	cd $OPT/qt5/qtbase
-	sudo make install
-	sudo cp -r /usr/local/qt5pi/mkspecs/ $ROOTFS/usr/local/qt5pi/
+	make install
+	cp -r $QT5PIPREFIX/mkspecs/ $ROOTFS/usr/local/qt5pi/
 }
 
 function makemodules {
 	for i in qtimageformats qtsvg qtjsbackend qtscript qtxmlpatterns qtdeclarative qtsensors qt3d qtgraphicaleffects qtjsondb qtlocation qtquick1 qtsystems qtmultimedia
 	do
-		cd $OPT/qt5/$i && echo "Building $i" && sleep 3 && /usr/local/qt5pi/bin/qmake . && make -j $CORES && sudo make install && touch .COMPILED
+		cd $OPT/qt5/$i && echo "Building $i" && sleep 3 && $QT5PIPREFIX/bin/qmake . && make -j $CORES && make install && touch .COMPILED
 		cd $OPT/qt5/
 	done
 
 #	cd $OPT/qt5/qtdeclarative/tools/qmlscene
-#	/usr/local/qt5pi/bin/qmake .
+#	$QT5PIPREFIX/bin/qmake .
 #	make -j $CORES
-#	sudo make install
+#	make install
 #
 #	cd $OPT/qt5/qtdeclarative/examples/demos/samegame
-#        /usr/local/qt5pi/bin/qmake .
+#        $QT5PIPREFIX/bin/qmake .
 #        make -j $CORES
-#        sudo make install
+#        make install
 	
 	for i in qtimageformats qtsvg qtjsbackend qtscript qtxmlpatterns qtdeclarative qtsensors qt3d qtgraphicaleffects qtjsondb qtlocation qtquick1 qtsystems qtmultimedia
 	do
