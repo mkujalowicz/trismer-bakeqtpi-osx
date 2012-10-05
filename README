@@ -1,0 +1,8 @@
+For OSX:
+
+brew install ctorrent
+brew install gmp mpfr mpc
+
+For Ubuntu:
+
+sudo apt-get install build-essential git ia32-libs ctorrent unzip
