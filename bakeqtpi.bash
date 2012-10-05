@@ -182,11 +182,24 @@ function downloadAndMountPi {
 	sudo mount -o loop,offset=62914560 $RASPBIAN_IMG $MOUNT || error 3
 }
 
+function makeCrossCompilerForOSX {
+	git clone https://github.com/jsnyder/arm-eabi-toolchain.git
+	cd arm-eabi-toolchain
+	PREFIX=$OPT/arm-cs-tools make install-cross
+	make clean
+}
+
 #Download and extract cross compiler and tools
 function dlcc {
 	cd $OPT
-	wget -c http://blueocean.qmh-project.org/gcc-4.7-linaro-rpi-gnueabihf.tbz || error 4
-	tar -xf gcc-4.7-linaro-rpi-gnueabihf.tbz || error 5
+	if ["$OSTYPE" == "Darwin12"]
+	then
+		makeCrossCompilerForOSX
+	else
+		wget -c http://blueocean.qmh-project.org/gcc-4.7-linaro-rpi-gnueabihf.tbz || error 4
+		tar -xf gcc-4.7-linaro-rpi-gnueabihf.tbz || error 5
+	fi
+
 	if [ ! -d $CCT/.git ]; then
 		git clone $CC_GIT || error 4
 	else
