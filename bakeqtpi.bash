@@ -8,6 +8,8 @@ CCT=$OPT/cross-compile-tools
 MOUNT=/mnt/rasp-pi-rootfs
 QTBASE=$OPT/qt5
 
+CCPATH=$CC/bin/arm-linux-gnueabihf-gcc
+
 RASPBIAN=2012-09-18-wheezy-raspbian
 
 RASPBIAN_HTTP=http://ftp.snt.utwente.nl/pub/software/rpi/images/raspbian/$RASPBIAN/$RASPBIAN.zip
@@ -195,9 +197,11 @@ function dlcc {
 	if ["$OSTYPE" == "Darwin12"]
 	then
 		makeCrossCompilerForOSX
+		CCPATH=$OPT/arm-cs-tools/bin/arm-none-eabi-gcc
 	else
 		wget -c http://blueocean.qmh-project.org/gcc-4.7-linaro-rpi-gnueabihf.tbz || error 4
 		tar -xf gcc-4.7-linaro-rpi-gnueabihf.tbz || error 5
+		CCPATH=$CC/bin/arm-linux-gnueabihf-gcc
 	fi
 
 	if [ ! -d $CCT/.git ]; then
@@ -228,7 +232,7 @@ function dlqt {
 
 function prepcctools {
 	cd $CCT
-	./fixQualifiedLibraryPaths $MOUNT $CC/bin/arm-linux-gnueabihf-gcc || error 8
+	./fixQualifiedLibraryPaths $MOUNT $CCPATH || error 8
 	cd $OPT/qt5/qtbase
 }
 
