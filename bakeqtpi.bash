@@ -18,7 +18,7 @@ RASPBIAN_FILE=2012-08-16-wheezy-raspbian
 
 CUSTOM_RASPBIAN=""
 
-CC_GIT="gitorious.org/cross-compile-tools/cross-compile-tools.git"
+CC_GIT="gitorious.org/~trismer/cross-compile-tools/trismers-cross-compile-tools-osx.git"
 QT_GIT="gitorious.org/qt/qt5.git"
 GIT=GIT
 INITREPOARGS="--no-webkit -f"
