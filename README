@@ -1,7 +1,7 @@
 For OSX:
 
 brew install ctorrent
-brew install gmp mpfr mpc
+brew install mpfr gmp libmpc libelf texinfo
 
 For Ubuntu:
 
