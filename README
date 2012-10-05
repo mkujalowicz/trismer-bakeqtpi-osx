@@ -1,6 +1,6 @@
 For OSX:
 
-brew install ctorrent
+brew install ctorrent wget
 brew install mpfr gmp libmpc libelf texinfo --env=std #env=std needed due to mpfr failing to compile
 
 For Ubuntu:
