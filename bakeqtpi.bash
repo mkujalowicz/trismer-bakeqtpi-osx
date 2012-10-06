@@ -25,7 +25,6 @@ CUSTOM_RASPBIAN=""
 
 WGET_OPTS="-nc -c"
 
-
 command -v sudo >/dev/null 2>&1 || { echo >&2  "Sudo needs to be installed for the fixQualifiedLibraryPaths script to work"; exit 1; }
 
 #Debugfs path
@@ -41,7 +40,7 @@ INITREPOARGS="--no-webkit -f"
 #Basically, a list of all the folders in the checked out qt5 repo to cd into and build. qtbase will already be done by this point
 QT_COMPILE_LIST="qtimageformats qtsvg qtjsbackend qtscript qtxmlpatterns qtdeclarative qtsensors qt3d qtgraphicaleffects qtlocation qtquick1 qtsystems qtmultimedia"
 
-
+CONFIGURE_OPTIONS=""
 
 #Work out how many concurrent threads to run
 if [ "$OSTYPE" == "darwin12" ]
@@ -305,6 +304,14 @@ function prepcctools {
 
 function configureandmakeqtbase {
 	echo "Configuring QT Base"
+	
+	CONFIGURE_OPTIONS="-opengl es2 -device linux-rasp-pi-g++ -device-option CROSS_COMPILE=$CC/bin/arm-linux-gnueabihf- -sysroot $ROOTFS -opensource -confirm-license -optimized-qmake -reduce-relocations -release -make libs -prefix /usr/local/qt5pi -no-pch"
+
+	if [ ! -a /etc/redhat-release ]
+	then
+		CONFIGURE_OPTIONS="$CONFIGURE_OPTIONS -reduce-exports"
+	fi
+	
 	cd $OPT/qt5/qtbase
 	if [ "$CONFCLEAN" == 1 ]; then
 		echo "Cleaning first"
@@ -313,7 +320,7 @@ function configureandmakeqtbase {
 		make confclean
 	fi
 	if [ ! -e $OPT/qt5/qtbase/.CONFIGURED ]; then
-		./configure -opengl es2 -device linux-rasp-pi-g++ -device-option CROSS_COMPILE=$CC/bin/arm-linux-gnueabihf- -sysroot $ROOTFS -opensource -confirm-license -optimized-qmake -reduce-relocations -reduce-exports -release -make libs -prefix /usr/local/qt5pi -no-pch && touch $OPT/qt5/qtbase/.CONFIGURED || error 9
+		./configure $CONFIGURE_OPTIONS && touch $OPT/qt5/qtbase/.CONFIGURED || error 9
 	fi
 	echo "Making QT Base"
 	make -j $CORES || error 10
