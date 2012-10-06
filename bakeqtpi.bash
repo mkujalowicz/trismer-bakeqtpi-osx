@@ -6,7 +6,7 @@ SCRIPT_DIR=$PWD
 OPT=~/opt
 CC=$OPT/gcc-4.7-linaro-rpi-gnueabihf
 CCT=$OPT/cross-compile-tools
-MOUNT=$OPT/rasp-pi-rootfs
+MOUNT=$OPT/rasp-pi-image
 ROOTFS=$OPT/rasp-pi-rootfs
 
 QTBASE=$OPT/qt5
@@ -198,20 +198,13 @@ function downloadAndMountPi {
         		$DEBUGFS -f $OPT/rdump.lst $DISK || error 3
         	fi
 	else
-		if [ ! -d $MOUNT ]; then
-			sudo mkdir $MOUNT || error 3
+		if [ ! -d $ROOTFS ]; then
+			sudo mkdir $ROOTFS || error 3
 		else
-			sudo umount $MOUNT
+			sudo umount $ROOTFS
 		fi
-		sudo mount -o loop,offset=62914560 $RASPBIAN_IMG $MOUNT || error 3
+		sudo mount -o loop,offset=62914560 $RASPBIAN_IMG $ROOTFS || error 3
 	fi
-}
-
-function makeCrossCompilerForOSX {
-	git clone https://github.com/jsnyder/arm-eabi-toolchain.git
-	cd arm-eabi-toolchain
-	PREFIX=$OPT/arm-cs-tools make install-cross
-	make clean
 }
 
 #Download and extract cross compiler and tools
@@ -219,8 +212,10 @@ function dlcc {
 	cd $OPT
 	if ["$OSTYPE" == "Darwin12"]
 	then
-		makeCrossCompilerForOSX
-		CCPATH=$OPT/arm-cs-tools/bin/arm-none-eabi-gcc
+		wget -c http://trismer.com/downloads/arm-linux-gnueabihf-osx-2012-08-28.tar.gz || error 4
+		tar -xf arm-linux-gnueabihf-osx-2012-08-28.tar.gz || error 5
+		CC=$OPT/arm-linux-gnueabihf-osx
+		CCPATH=$CC/bin/bin/arm-linux-gnueabihf-gcc
 	else
 		wget -c http://blueocean.qmh-project.org/gcc-4.7-linaro-rpi-gnueabihf.tbz || error 4
 		tar -xf gcc-4.7-linaro-rpi-gnueabihf.tbz || error 5
@@ -255,7 +250,7 @@ function dlqt {
 
 function prepcctools {
 	cd $CCT
-	./fixQualifiedLibraryPaths $MOUNT $CCPATH || error 8
+	./fixQualifiedLibraryPaths $ROOTFS $CCPATH || error 8
 	cd $OPT/qt5/qtbase
 }
 
@@ -267,7 +262,7 @@ function configureandmakeqtbase {
 		make confclean
 	fi
 	if [ ! -e $OPT/qt5/qtbase/.CONFIGURED ]; then
-		./configure -opengl es2 -device linux-rasp-pi-g++ -device-option CROSS_COMPILE=$CC/bin/arm-linux-gnueabihf- -sysroot $MOUNT -opensource -confirm-license -optimized-qmake -reduce-relocations -reduce-exports -release -make libs -prefix /usr/local/qt5pi -no-pch && touch $OPT/qt5/qtbase/.CONFIGURED || error 9
+		./configure -opengl es2 -device linux-rasp-pi-g++ -device-option CROSS_COMPILE=$CC/bin/arm-linux-gnueabihf- -sysroot $ROOTFS -opensource -confirm-license -optimized-qmake -reduce-relocations -reduce-exports -release -make libs -prefix /usr/local/qt5pi -no-pch && touch $OPT/qt5/qtbase/.CONFIGURED || error 9
 	fi
 	make -j $CORES || error 10
 }
@@ -275,7 +270,7 @@ function configureandmakeqtbase {
 function installqtbase {
 	cd $OPT/qt5/qtbase
 	sudo make install
-	sudo cp -r /usr/local/qt5pi/mkspecs/ $MOUNTs/usr/local/qt5pi/
+	sudo cp -r /usr/local/qt5pi/mkspecs/ $ROOTFS/usr/local/qt5pi/
 }
 
 function makemodules {
