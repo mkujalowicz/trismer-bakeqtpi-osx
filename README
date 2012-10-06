@@ -25,4 +25,5 @@ For Centos:
 
 rpm -i http://mirrors.coreix.net/fedora-epel/6/i386/epel-release-6-7.noarch.rpm
 yum groupinstall "Development Tools"
-yum install ctorrent compat-libstdc++-296.i686 compat-libstdc++-33.i686 wget
+yum install ctorrent compat-libstdc++-296.i686 compat-libstdc++-33.i686 wget libstdc++.so.6
+
