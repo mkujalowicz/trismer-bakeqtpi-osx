@@ -1,8 +1,22 @@
 For OSX:
+Requirements:
+XCode commandline tools (https://developer.apple.com/downloads/index.action)
+Homebrew (http://mxcl.github.com/homebrew/)
 
-brew install ctorrent wget
-brew install e2fsprogs mpfr gmp libmpc libelf texinfo --env=std #env=std needed due to mpfr failing to compile
+Once both are installed, execute the following (as non-root)
+$ brew install ctorrent wget
+$ brew install e2fsprogs mpfr gmp libmpc libelf texinfo --env=std #env=std needed due to mpfr failing to compile
+
+Then, simply run the script:
+
+$ ./bakeqtpi.bash
+
 
 For Ubuntu:
+You need to install the following packages:
 
-sudo apt-get install build-essential git ia32-libs ctorrent unzip
+$ sudo apt-get install build-essential git ia32-libs ctorrent unzip
+
+Then, simply run the script:
+
+$ ./bakeqtpi.bash
