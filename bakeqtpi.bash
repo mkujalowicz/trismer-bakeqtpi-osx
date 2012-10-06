@@ -5,13 +5,14 @@
 SCRIPT_DIR=$PWD
 OPT=~/opt
 CC=$OPT/arm-linux-gnueabihf-osx
-CCT=$OPT/cross-compile-tools
+CCT=$OPT/trismers-cross-compile-tools-osx
 MOUNT=$OPT/rasp-pi-image
 ROOTFS=$OPT/rasp-pi-rootfs
 QTBASE=$OPT/qt5
 DEBUGFS=/usr/local/Cellar/e2fsprogs/1.42.5/sbin/debugfs
 CORES=2
 QT5PIPREFIX=$OPT/qt5pi
+QT5ROOTFS=$ROOTFS/$QT5PIPREFIX
 
 RASPBIAN_HTTP=http://ftp.snt.utwente.nl/pub/software/rpi/images/raspbian/2012-08-16-wheezy-raspbian/2012-08-16-wheezy-raspbian.zip
 RASPBIAN_TORRENT=http://downloads.raspberrypi.org/images/raspbian/2012-08-16-wheezy-raspbian/2012-08-16-wheezy-raspbian.zip.torrent
@@ -175,7 +176,6 @@ function downloadAndMountPi {
 	if [ -d $MOUNT ]; then
 		hdiutil detach $MOUNT
 	fi
-        echo "hdiutil attach -mountpoint $SCRIPT_DIR $MOUNT $RASPBIAN_IMG"
         hdiutil attach -mountpoint $MOUNT $RASPBIAN_IMG || error 3
         echo "rdump lib $ROOTFS" > $OPT/rdump.lst
         echo "rdump opt $ROOTFS" >> $OPT/rdump.lst
@@ -194,7 +194,7 @@ function dlcc {
 	wget -c http://trismer.com/downloads/arm-linux-gnueabihf-osx-2012-08-28.tar.gz || error 4
 	tar -xf arm-linux-gnueabihf-osx-2012-08-28.tar.gz || error 5
 	if [ ! -d $CCT/.git ]; then
-		git clone git://gitorious.org/cross-compile-tools/cross-compile-tools.git || error 4
+		git clone $CC_GIT || error 4
 	else
 		cd $CCT && git pull && cd $OPT
 	fi
@@ -271,6 +271,30 @@ function makemodules {
 		fi
 	done
 }
+function copyToImage {
+    cd $QT5ROOTFS
+    rm $OPT/writeToImage
+    rm $OPT/writeToImage1
+    echo "mkdir /usr/local/qt5"
+    find . -type d | while read i;
+    do
+    echo "mkdir /usr/local/qt5/$i" >> $OPT/writeToImage
+    done
+    find . -type f | while read i;
+    do
+    filePath=$(dirname $i)
+    fileName=$(basename $i)
+    echo "cd /usr/local/qt5/$filePath" >> $OPT/writeToImage
+    echo "write $QT5ROOTFS/$i $fileName" >> $OPT/writeToImage
+    done
+    find . -type l | while read i;
+    do
+    linkPath=$(dirname $i)
+    linkDest=$(readlink $i)
+    echo "cd /usr/local/qt5/$linkPath" >> $OPT/writeToImage1
+    echo "ln $linkDest /usr/local/qt5/$i" >> $OPT/writeToImage1
+    done
+}
 #Start of script
 
 mkdir -p $OPT || error 1
@@ -283,3 +307,4 @@ prepcctools
 configureandmakeqtbase
 installqtbase
 makemodules
+copyToImage
