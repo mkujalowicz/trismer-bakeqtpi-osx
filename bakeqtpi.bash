@@ -307,7 +307,7 @@ function configureandmakeqtbase {
 	
 	CONFIGURE_OPTIONS="-opengl es2 -device linux-rasp-pi-g++ -device-option CROSS_COMPILE=$CC/bin/arm-linux-gnueabihf- -sysroot $ROOTFS -opensource -confirm-license -optimized-qmake -reduce-relocations -release -make libs -prefix /usr/local/qt5pi -no-pch"
 
-	if [ ! -a /etc/redhat-release ]
+	if [ ! -f /etc/redhat-release ]
 	then
 		CONFIGURE_OPTIONS="$CONFIGURE_OPTIONS -reduce-exports"
 	fi
