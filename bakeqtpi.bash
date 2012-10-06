@@ -2,10 +2,13 @@
 #This script will download, set up, compile QT5, and set up the SDCard image ready to use.
 #Pass -h to use https for git
 
+SCRIPT_DIR=$PWD
 OPT=~/opt
 CC=$OPT/gcc-4.7-linaro-rpi-gnueabihf
 CCT=$OPT/cross-compile-tools
-MOUNT=/mnt/rasp-pi-rootfs
+MOUNT=$OPT/rasp-pi-rootfs
+ROOTFS=$OPT/rasp-pi-rootfs
+
 QTBASE=$OPT/qt5
 
 CCPATH=$CC/bin/arm-linux-gnueabihf-gcc
@@ -176,12 +179,32 @@ function downloadAndMountPi {
 		RASPBIAN_IMG=$CUSTOM_RASPBIAN
 	fi
 
-	if [ ! -d $MOUNT ]; then
-		sudo mkdir $MOUNT || error 3
+        if ["$OSTYPE" == "Darwin12"]
+        then
+		if [ -d $MOUNT ]; then
+			hdiutil detach $MOUNT
+		fi
+	        echo "hdiutil attach -mountpoint $SCRIPT_DIR $MOUNT $RASPBIAN_IMG"
+        	DISK=hdiutil attach -mountpoint $MOUNT $RASPBIAN_IMG | grep Linux | awk '{print $1}'
+        	if [[ "$DISK" =~ /dev/disk* ]]; then 
+			error 3
+		fi
+		echo "rdump lib $ROOTFS" > $OPT/rdump.lst
+        	echo "rdump opt $ROOTFS" >> $OPT/rdump.lst
+        	echo "rdump usr $ROOTFS" >> $OPT/rdump.lst
+        	echo "rdump var $ROOTFS" >> $OPT/rdump.lst
+        	if [ ! -d $ROOTFS ]; then
+        		mkdir $ROOTFS
+        		$DEBUGFS -f $OPT/rdump.lst $DISK || error 3
+        	fi
 	else
-		sudo umount $MOUNT
+		if [ ! -d $MOUNT ]; then
+			sudo mkdir $MOUNT || error 3
+		else
+			sudo umount $MOUNT
+		fi
+		sudo mount -o loop,offset=62914560 $RASPBIAN_IMG $MOUNT || error 3
 	fi
-	sudo mount -o loop,offset=62914560 $RASPBIAN_IMG $MOUNT || error 3
 }
 
 function makeCrossCompilerForOSX {
