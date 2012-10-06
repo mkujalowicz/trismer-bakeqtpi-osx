@@ -2,32 +2,67 @@
 #This script will download, set up, compile QT5, and set up the SDCard image ready to use.
 #Pass -h to use https for git
 
+
 SCRIPT_DIR=$PWD
-OPT=~/opt
-CC=$OPT/arm-linux-gnueabihf-osx
-CCT=$OPT/trismers-cross-compile-tools-osx
-MOUNT=$OPT/rasp-pi-image
-ROOTFS=$OPT/rasp-pi-rootfs
-QTBASE=$OPT/qt5
-DEBUGFS=/usr/local/Cellar/e2fsprogs/1.42.5/sbin/debugfs
-CORES=2
-QT5PIPREFIX=$OPT/qt5pi
+OPT_DIRECTORY=~/opt
+QTBASE=$OPT_DIRECTORY/qt5
+
+#Some sensible defaults
+CROSSCOMPILER=$OPT_DIRECTORY/arm-linux-gnueabihf-osx
+CROSSCOMPILETOOLS=$OPT_DIRECTORY/trismers-cross-compile-tools-osx
+CROSSCOMPILERPATH=$CROSSCOMPILER/bin/arm-linux-gnueabihf-gcc
+
+QT5PIPREFIX=$OPT_DIRECTORY/qt5pi
 QT5ROOTFS=$ROOTFS/$QT5PIPREFIX
 
-RASPBIAN_HTTP=http://ftp.snt.utwente.nl/pub/software/rpi/images/raspbian/2012-08-16-wheezy-raspbian/2012-08-16-wheezy-raspbian.zip
-RASPBIAN_TORRENT=http://downloads.raspberrypi.org/images/raspbian/2012-08-16-wheezy-raspbian/2012-08-16-wheezy-raspbian.zip.torrent
-RASPBIAN_FILE=2012-08-16-wheezy-raspbian
+MOUNT=$OPT_DIRECTORY/rasp-pi-image
+ROOTFS=$OPT_DIRECTORY/rasp-pi-rootfs
+
+#Raspbian image and download stuff
+RASPBIAN=2012-09-18-wheezy-raspbian
+
+RASPBIAN_HTTP=http://ftp.snt.utwente.nl/pub/software/rpi/images/raspbian/$RASPBIAN/$RASPBIAN.zip
+RASPBIAN_TORRENT=http://downloads.raspberrypi.org/images/raspbian/$RASPBIAN/$RASPBIAN.zip.torrent
 
 CUSTOM_RASPBIAN=""
 
-CC_GIT="gitorious.org/~trismer/cross-compile-tools/trismers-cross-compile-tools-osx.git"
+WGET_OPT="-nc -c"
+
+command -v sudo >/dev/null 2>&1 || { echo >&2  "Sudo needs to be installed for the fixQualifiedLibraryPaths script to work"; exit 1; }
+
+#Debugfs path
+DEBUGFS=/usr/local/Cellar/e2fsprogs/*/sbin/debugfs
+
+#Git repos
+CROSSCOMPILEGIT="gitorious.org/~trismer/cross-compile-tools/trismers-cross-compile-tools-osx.git"
 QT_GIT="gitorious.org/qt/qt5.git"
 GIT=GIT
+
 INITREPOARGS="--no-webkit -f"
 
-if [ ! `echo $CORES | awk '$1+0==$1'` ]; then
-	CORES = 1
+#Basically, a list of all the folders in the checked out qt5 repo to cd into and build. qtbase will already be done by this point
+QT_COMPILE_LIST="qtimageformats qtsvg qtjsbackend qtscript qtxmlpatterns qtdeclarative qtsensors qt3d qtgraphicaleffects qtlocation qtquick1 qtsystems qtmultimedia"
+
+CONFIGURE_OPTIONS=""
+
+#Work out how many concurrent threads to run
+if [ "$OSTYPE" == "darwin12" ]
+then
+	CORES=`sysctl -a | grep machdep.cpu.thread_count | awk '{print $2}'`
+else
+	CORES=`grep -c '^processor' /proc/cpuinfo`
 fi
+
+CORES=`echo $CORES | grep '^[[:digit:]]*$'`
+	
+if [ "$CORES" == "" ]
+then
+  CORES=1
+  echo "CPU Core count failed, defaulting to single thread compilation"
+else
+  echo "Using $CORES threads for compilation"
+fi
+
 
 #Parse arguments
 while test $# -gt 0
@@ -38,7 +73,7 @@ do
 			# usage and help
 			echo "Usage:"
 			echo "		./bakeqtpi.bash [options]"
-			echo "Options:"
+			echo "options:"
 			echo "		--http			Tells git and init-repository to use http(s)"
 			echo "		--httppi 		Tells the script to download the Raspbian image using http/wget"
 			echo "		--torrentpi		Tells the script to download the Raspbian image using torrent/ctorrent"
@@ -100,14 +135,12 @@ do
 	shift
 done
 
-echo "Using Raspbian image at $CUSTOM_RASPBIAN"
-
 if [ "$GIT" == "HTTPS" ]; then
-	CC_GIT="https://git."$CC_GIT
+	CROSSCOMPILEGIT="https://git."$CROSSCOMPILEGIT
 	QT_GIT="https://git."$QT_GIT
 	INITREPOARGS="$INITREPOARGS --http"
 else
-	CC_GIT="git://"$CC_GIT
+	CROSSCOMPILEGIT="git://"$CROSSCOMPILEGIT
 	QT_GIT="git://"$QT_GIT
 fi
 
@@ -142,10 +175,12 @@ function error {
 	exit -1
 }
 
+#Download and mount the Raspbian image, tested on OS X and Ubuntu
 function downloadAndMountPi {
-	cd $OPT
+	cd $OPT_DIRECTORY
 
 	if [ "$CUSTOM_RASPBIAN" == "" ]; then
+		echo "Downloading Raspbian"
 		if [ "$TORRENT" == 1 ]; then
 			dl="T"
 		elif [ "$HTTPPI" == 1 ];then
@@ -161,109 +196,172 @@ function downloadAndMountPi {
 		fi
 	
 		if [[ $dl =~ [Hh] ]]; then
-			wget -c $RASPBIAN_HTTP || error 2
+			wget $WGET_OPT $RASPBIAN_HTTP || error 2
 		else
-			wget $RASPBIAN_TORRENT || error 2
-			ctorrent -a -e - $RASPBIAN_FILE.zip.torrent || error 2
+			wget $WGET_OPT $RASPBIAN_TORRENT || error 2
+			ctorrent -a -e - $RASPBIAN.zip.torrent || error 2
 		fi
 
-		unzip $RASPBIAN_FILE.zip || error 2
-		RASPBIAN_IMG=$RASPBIAN_FILE.img
+		unzip $RASPBIAN.zip || error 2
+		RASPBIAN_IMG=$RASPBIAN.img
 	else
 		RASPBIAN_IMG=$CUSTOM_RASPBIAN
 	fi
 
-	if [ -d $MOUNT ]; then
-		hdiutil detach $MOUNT
+	echo "Using Raspbian image at $CUSTOM_RASPBIAN"
+
+	echo "Mounting raspbian image"
+
+        if [ "$OSTYPE" == "darwin12" ]
+        then
+		if [ -d $MOUNT ]; then
+			hdiutil detach $MOUNT
+		fi
+	        #echo "hdiutil attach -mountpoint $SCRIPT_DIR $MOUNT $RASPBIAN_IMG"
+        	DISK=`hdiutil attach -mountpoint $MOUNT $RASPBIAN_IMG | grep Linux | awk '{print $1}'`
+        	if [[ ! "$DISK" =~ /dev/disk* ]]; then 
+			error 3
+		fi
+		echo "rdump lib $ROOTFS" > $OPT_DIRECTORY/rdump.lst
+        	echo "rdump opt $ROOTFS" >> $OPT_DIRECTORY/rdump.lst
+        	echo "rdump usr $ROOTFS" >> $OPT_DIRECTORY/rdump.lst
+        	echo "rdump var $ROOTFS" >> $OPT_DIRECTORY/rdump.lst
+        	if [ ! -d $ROOTFS ]; then
+        		mkdir $ROOTFS
+		fi
+            	$DEBUGFS -f $OPT_DIRECTORY/rdump.lst $DISK || error 3
+	else
+		if [ ! -d $ROOTFS ]; then
+			if [ "$(id -u)" != "0" ]; then
+				sudo mkdir $ROOTFS || error 3
+			else
+				mkdir $ROOTFS || error 3
+			fi
+		else
+			if [ "$(id -u)" != "0" ]; then
+				sudo umount $ROOTFS
+			else
+				umount $ROOTFS
+			fi
+		fi
+		if [ "$(id -u)" != "0" ]; then
+			sudo mount -o loop,offset=62914560 $RASPBIAN_IMG $ROOTFS || error 3
+		else
+			mount -o loop,offset=62914560 $RASPBIAN_IMG $ROOTFS || error 3
+		fi
 	fi
-        hdiutil attach -mountpoint $MOUNT $RASPBIAN_IMG || error 3
-        echo "rdump lib $ROOTFS" > $OPT/rdump.lst
-        echo "rdump opt $ROOTFS" >> $OPT/rdump.lst
-        echo "rdump usr $ROOTFS" >> $OPT/rdump.lst
-        echo "rdump var $ROOTFS" >> $OPT/rdump.lst
-        if [ ! -d $ROOTFS ]; then
-        mkdir $ROOTFS
-        $DEBUGFS -f $OPT/rdump.lst /dev/disk2s2 || error 3
-        fi
-	#sudo mount -o loop,offset=62914560 $RASPBIAN_IMG $MOUNT || error 3
+	echo "Raspbian mounted"
 }
 
 #Download and extract cross compiler and tools
 function dlcc {
-	cd $OPT
-	wget -c http://trismer.com/downloads/arm-linux-gnueabihf-osx-2012-08-28.tar.gz || error 4
-	tar -xf arm-linux-gnueabihf-osx-2012-08-28.tar.gz || error 5
-	if [ ! -d $CCT/.git ]; then
-		git clone $CC_GIT || error 4
+	cd $OPT_DIRECTORY
+	echo "Downloading Cross compiler and extra tools"
+	if [ "$OSTYPE" == "darwin12" ]
+	then
+		wget $WGET_OPT http://trismer.com/downloads/arm-linux-gnueabihf-osx-2012-08-28.tar.gz || error 4
+		tar -xf arm-linux-gnueabihf-osx-2012-08-28.tar.gz || error 5
+		CROSSCOMPILER=$OPT_DIRECTORY/arm-linux-gnueabihf-osx
+		CROSSCOMPILERPATH=$CROSSCOMPILER/bin/arm-linux-gnueabihf-gcc
 	else
-		cd $CCT && git pull && cd $OPT
+		wget $WGET_OPT http://blueocean.qmh-project.org/gcc-4.7-linaro-rpi-gnueabihf.tbz || error 4
+		tar -xf gcc-4.7-linaro-rpi-gnueabihf.tbz || error 5
+		CROSSCOMPILERPATH=$CROSSCOMPILER/bin/arm-linux-gnueabihf-gcc
 	fi
+
+	if [ ! -d $CROSSCOMPILETOOLS/.git ]; then
+		git clone $CROSSCOMPILEGIT || error 4
+	else
+		cd $CROSSCOMPILETOOLS && git pull && cd $OPT_DIRECTORY
+	fi
+	echo "Cross Compilation tools downloaded and extracted"
 }
 
 function dlqt {
-	cd $OPT
-	if [ ! -d $OPT/qt5/.git ]; then
-		git clone git://gitorious.org/qt/qt5.git || error 6
+	echo "Cloning QT Code"
+	cd $OPT_DIRECTORY
+	if [ ! -d $OPT_DIRECTORY/qt5/.git ]; then
+		git clone $QT_GIT || error 6
 	else
-		cd $OPT/qt5/ && git pull 
-		cd $CCT
+		cd $OPT_DIRECTORY/qt5/ && git pull 
+		cd $CROSSCOMPILETOOLS
 		./syncQt5
-		cd $OPT
+		cd $OPT_DIRECTORY
 	fi
 	cd qt5
-	while [ ! -e $OPT/qt5/.initialised ]
+	while [ ! -e $OPT_DIRECTORY/qt5/.initialised ]
 	do
-		./init-repository $INITREPOARGS && touch $OPT/qt5/.initialised
+		./init-repository $INITREPOARGS && touch $OPT_DIRECTORY/qt5/.initialised
 	done || error 7
-	cd $OPT/qt5/qtjsbackend
-	git fetch https://codereview.qt-project.org/p/qt/qtjsbackend refs/changes/56/27256/4 && git cherry-pick FETCH_HEAD
+	echo "Code cloned"
+	#cd $OPT_DIRECTORY/qt5/qtjsbackend
+	#git fetch https://codereview.qt-project.org/p/qt/qtjsbackend refs/changes/56/27256/4 && git cherry-pick FETCH_HEAD
 }
 
 function prepcctools {
-	cd $CCT
-	./fixQualifiedLibraryPaths $ROOTFS $CC/bin/arm-linux-gnueabihf-gcc || error 8
-	cd $OPT/qt5/qtbase
+	cd $CROSSCOMPILETOOLS
+	echo "Fixing Qualified Library Paths, whatever that means..."
+	./fixQualifiedLibraryPaths $ROOTFS $CROSSCOMPILERPATH || error 8
+	cd $OPT_DIRECTORY/qt5/qtbase
 }
 
 function configureandmakeqtbase {
-	cd $OPT/qt5/qtbase
+	echo "Configuring QT Base"
+	
+	CONFIGURE_OPTIONS="-opengl es2 -device linux-rasp-pi-g++ -device-option CROSS_COMPILE=$CROSSCOMPILER/bin/arm-linux-gnueabihf- -sysroot $ROOTFS -opensource -confirm-license -optimized-qmake -release -make libs -prefix QT5PIPREFIX -no-pch"
+
+	if [ ! -f /etc/redhat-release ]
+	then
+		CONFIGURE_OPTIONS="$CONFIGURE_OPTIONS -reduce-exports -reduce-relocations"
+	fi
+	
+	cd $OPT_DIRECTORY/qt5/qtbase
 	if [ "$CONFCLEAN" == 1 ]; then
-		rm -f $OPT/qt5/qtbase/.CONFIGURED
-		cd $OPT/qt5/qtbase
+		echo "Cleaning first"
+		rm -f $OPT_DIRECTORY/qt5/qtbase/.CONFIGURED
+		cd $OPT_DIRECTORY/qt5/qtbase
 		make confclean
 	fi
-	if [ ! -e $OPT/qt5/qtbase/.CONFIGURED ]; then
-		./configure -opengl es2 -device linux-rasp-pi-g++ -device-option CROSS_COMPILE=$CC/bin/arm-linux-gnueabihf- -sysroot $ROOTFS -opensource -confirm-license -optimized-qmake -reduce-relocations -reduce-exports -release -make libs -prefix $QT5PIPREFIX -make libs -no-pch && touch $OPT/qt5/qtbase/.CONFIGURED || error 9
+	if [ ! -e $OPT_DIRECTORY/qt5/qtbase/.CONFIGURED ]; then
+		./configure $CONFIGURE_OPTIONS && touch $OPT_DIRECTORY/qt5/qtbase/.CONFIGURED || error 9
 	fi
+	echo "Making QT Base"
 	make -j $CORES || error 10
 }
 
 function installqtbase {
-	cd $OPT/qt5/qtbase
-	make install
-	cp -r $QT5PIPREFIX/mkspecs/ $ROOTFS/usr/local/qt5pi/
+	echo "Installing QT Base"
+	cd $OPT_DIRECTORY/qt5/qtbase
+	if [ "$(id -u)" != "0" ]; then
+		make install
+		cp -r QT5PIPREFIX/mkspecs/ $ROOTFS/usr/local/qt5pi/
+	else
+		make install
+		cp -r QT5PIPREFIX/mkspecs/ $ROOTFS/usr/local/qt5pi/
+	fi
+	echo "QT Base Installed"
 }
 
 function makemodules {
-	for i in qtimageformats qtsvg qtjsbackend qtscript qtxmlpatterns qtdeclarative qtsensors qt3d qtgraphicaleffects qtjsondb qtlocation qtquick1 qtsystems qtmultimedia
+	echo "Making QT Modules $QT_COMPILE_LIST"
+	for i in $QT_COMPILE_LIST
 	do
-		cd $OPT/qt5/$i && echo "Building $i" && sleep 3 && $QT5PIPREFIX/bin/qmake . && make -j $CORES && make install && touch .COMPILED
-		cd $OPT/qt5/
+		if [ "$(id -u)" != "0" ]; then
+			cd $OPT_DIRECTORY/qt5/$i && echo "Building $i" && sleep 3 && QT5PIPREFIX/bin/qmake . && make -j $CORES && make install && touch .COMPILED
+		else
+			cd $OPT_DIRECTORY/qt5/$i && echo "Building $i" && sleep 3 && QT5PIPREFIX/bin/qmake . && make -j $CORES && make install && touch .COMPILED
+		fi
+		cd $OPT_DIRECTORY/qt5/
 	done
 
-#	cd $OPT/qt5/qtdeclarative/tools/qmlscene
-#	$QT5PIPREFIX/bin/qmake .
-#	make -j $CORES
-#	make install
-#
-#	cd $OPT/qt5/qtdeclarative/examples/demos/samegame
+#	cd $OPT_DIRECTORY/qt5/qtdeclarative/examples/demos/samegame
 #        $QT5PIPREFIX/bin/qmake .
 #        make -j $CORES
 #        make install
 	
-	for i in qtimageformats qtsvg qtjsbackend qtscript qtxmlpatterns qtdeclarative qtsensors qt3d qtgraphicaleffects qtjsondb qtlocation qtquick1 qtsystems qtmultimedia
+	for i in $QT_COMPILE_LIST
 	do
-		if [ -e "$OPT/qt5/$i/.COMPILED" ]
+		if [ -e "$OPT_DIRECTORY/qt5/$i/.COMPILED" ]
 		then
 			echo "Compiled $i"
 		else
@@ -271,34 +369,36 @@ function makemodules {
 		fi
 	done
 }
+
 function copyToImage {
     cd $QT5ROOTFS
     rm $OPT/writeToImage
     rm $OPT/writeToImage1
-    echo "mkdir /usr/local/qt5"
+    echo "mkdir /usr/local/qt5pi"
     find . -type d | while read i;
     do
-    echo "mkdir /usr/local/qt5/$i" >> $OPT/writeToImage
+    echo "mkdir /usr/local/qt5pi/$i" >> $OPT/writeToImage
     done
     find . -type f | while read i;
     do
     filePath=$(dirname $i)
     fileName=$(basename $i)
-    echo "cd /usr/local/qt5/$filePath" >> $OPT/writeToImage
+    echo "cd /usr/local/qt5pi/$filePath" >> $OPT/writeToImage
     echo "write $QT5ROOTFS/$i $fileName" >> $OPT/writeToImage
     done
     find . -type l | while read i;
     do
     linkPath=$(dirname $i)
     linkDest=$(readlink $i)
-    echo "cd /usr/local/qt5/$linkPath" >> $OPT/writeToImage1
-    echo "ln $linkDest /usr/local/qt5/$i" >> $OPT/writeToImage1
+    echo "cd /usr/local/qt5pi/$linkPath" >> $OPT/writeToImage1
+    echo "ln $linkDest /usr/local/qt5pi/$i" >> $OPT/writeToImage1
     done
 }
+
 #Start of script
 
-mkdir -p $OPT || error 1
-cd $OPT || error 1
+mkdir -p $OPT_DIRECTORY || error 1
+cd $OPT_DIRECTORY || error 1
 
 downloadAndMountPi
 dlcc
@@ -308,3 +408,4 @@ configureandmakeqtbase
 installqtbase
 makemodules
 copyToImage
+
