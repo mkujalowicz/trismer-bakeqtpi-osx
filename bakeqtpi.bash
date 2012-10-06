@@ -4,16 +4,16 @@
 
 
 SCRIPT_DIR=$PWD
-OPT=~/opt
-QTBASE=$OPT/qt5
+OPT_DIRECTORY=~/OPT_DIRECTORY
+QTBASE=$OPT_DIRECTORY/qt5
 
 #Some sensible defaults
-CC=$OPT/gcc-4.7-linaro-rpi-gnueabihf
-CCT=$OPT/cross-compile-tools
-CCPATH=$CC/bin/arm-linux-gnueabihf-gcc
+CROSSCOMPILER=$OPT_DIRECTORY/gcc-4.7-linaro-rpi-gnueabihf
+CROSSCOMPILETOOLS=$OPT_DIRECTORY/cross-compile-tools
+CROSSCOMPILERPATH=$CROSSCOMPILER/bin/arm-linux-gnueabihf-gcc
 
-MOUNT=$OPT/rasp-pi-image
-ROOTFS=$OPT/rasp-pi-rootfs
+MOUNT=$OPT_DIRECTORY/rasp-pi-image
+ROOTFS=$OPT_DIRECTORY/rasp-pi-rootfs
 
 #Raspbian image and download stuff
 RASPBIAN=2012-09-18-wheezy-raspbian
@@ -23,7 +23,7 @@ RASPBIAN_TORRENT=http://downloads.raspberrypi.org/images/raspbian/$RASPBIAN/$RAS
 
 CUSTOM_RASPBIAN=""
 
-WGET_OPTS="-nc -c"
+WGET_OPT="-nc -c"
 
 command -v sudo >/dev/null 2>&1 || { echo >&2  "Sudo needs to be installed for the fixQualifiedLibraryPaths script to work"; exit 1; }
 
@@ -31,7 +31,7 @@ command -v sudo >/dev/null 2>&1 || { echo >&2  "Sudo needs to be installed for t
 DEBUGFS=/usr/local/Cellar/e2fsprogs/*/sbin/debugfs
 
 #Git repos
-CC_GIT="gitorious.org/cross-compile-tools/cross-compile-tools.git"
+CROSSCOMPILEGIT="gitorious.org/cross-compile-tools/cross-compile-tools.git"
 QT_GIT="gitorious.org/qt/qt5.git"
 GIT=GIT
 
@@ -65,12 +65,12 @@ fi
 while test $# -gt 0
 do
 	case $1 in
-		# Normal option processing
+		# Normal OPT_DIRECTORYion processing
 		-h | --help)
 			# usage and help
 			echo "Usage:"
-			echo "		./bakeqtpi.bash [options]"
-			echo "Options:"
+			echo "		./bakeqtpi.bash [OPT_DIRECTORYions]"
+			echo "OPT_DIRECTORYions:"
 			echo "		--http			Tells git and init-repository to use http(s)"
 			echo "		--httppi 		Tells the script to download the Raspbian image using http/wget"
 			echo "		--torrentpi		Tells the script to download the Raspbian image using torrent/ctorrent"
@@ -108,14 +108,14 @@ do
 			break
 			;;
 		--*)
-			# error unknown (long) option $1
+			# error unknown (long) OPT_DIRECTORYion $1
 			;;
 		-?)
-			# error unknown (short) option $1
+			# error unknown (short) OPT_DIRECTORYion $1
 			;;
 	
 		# FUN STUFF HERE:
-		# Split apart combined short options
+		# Split apart combined short OPT_DIRECTORYions
 		-*)
 			split=$1
 			shift
@@ -123,7 +123,7 @@ do
 			continue
 			;;
 	
-		# Done with options
+		# Done with OPT_DIRECTORYions
 		*)
 			break
 			;;
@@ -133,11 +133,11 @@ do
 done
 
 if [ "$GIT" == "HTTPS" ]; then
-	CC_GIT="https://git."$CC_GIT
+	CROSSCOMPILEGIT="https://git."$CROSSCOMPILEGIT
 	QT_GIT="https://git."$QT_GIT
 	INITREPOARGS="$INITREPOARGS --http"
 else
-	CC_GIT="git://"$CC_GIT
+	CROSSCOMPILEGIT="git://"$CROSSCOMPILEGIT
 	QT_GIT="git://"$QT_GIT
 fi
 
@@ -174,7 +174,7 @@ function error {
 
 #Download and mount the Raspbian image, tested on OS X and Ubuntu
 function downloadAndMountPi {
-	cd $OPT
+	cd $OPT_DIRECTORY
 
 	if [ "$CUSTOM_RASPBIAN" == "" ]; then
 		echo "Downloading Raspbian"
@@ -193,9 +193,9 @@ function downloadAndMountPi {
 		fi
 	
 		if [[ $dl =~ [Hh] ]]; then
-			wget $WGET_OPTS $RASPBIAN_HTTP || error 2
+			wget $WGET_OPT $RASPBIAN_HTTP || error 2
 		else
-			wget $WGET_OPTS $RASPBIAN_TORRENT || error 2
+			wget $WGET_OPT $RASPBIAN_TORRENT || error 2
 			ctorrent -a -e - $RASPBIAN.zip.torrent || error 2
 		fi
 
@@ -219,14 +219,14 @@ function downloadAndMountPi {
         	if [[ ! "$DISK" =~ /dev/disk* ]]; then 
 			error 3
 		fi
-		echo "rdump lib $ROOTFS" > $OPT/rdump.lst
-        	echo "rdump opt $ROOTFS" >> $OPT/rdump.lst
-        	echo "rdump usr $ROOTFS" >> $OPT/rdump.lst
-        	echo "rdump var $ROOTFS" >> $OPT/rdump.lst
+		echo "rdump lib $ROOTFS" > $OPT_DIRECTORY/rdump.lst
+        	echo "rdump OPT_DIRECTORY $ROOTFS" >> $OPT_DIRECTORY/rdump.lst
+        	echo "rdump usr $ROOTFS" >> $OPT_DIRECTORY/rdump.lst
+        	echo "rdump var $ROOTFS" >> $OPT_DIRECTORY/rdump.lst
         	if [ ! -d $ROOTFS ]; then
         		mkdir $ROOTFS
 		fi
-            	sudo $DEBUGFS -f $OPT/rdump.lst $DISK || error 3
+            	sudo $DEBUGFS -f $OPT_DIRECTORY/rdump.lst $DISK || error 3
 	else
 		if [ ! -d $ROOTFS ]; then
 			if [ "$(id -u)" != "0" ]; then
@@ -252,75 +252,75 @@ function downloadAndMountPi {
 
 #Download and extract cross compiler and tools
 function dlcc {
-	cd $OPT
+	cd $OPT_DIRECTORY
 	echo "Downloading Cross compiler and extra tools"
 	if [ "$OSTYPE" == "darwin12" ]
 	then
-		wget $WGET_OPTS http://trismer.com/downloads/arm-linux-gnueabihf-osx-2012-08-28.tar.gz || error 4
+		wget $WGET_OPT http://trismer.com/downloads/arm-linux-gnueabihf-osx-2012-08-28.tar.gz || error 4
 		tar -xf arm-linux-gnueabihf-osx-2012-08-28.tar.gz || error 5
-		CC=$OPT/arm-linux-gnueabihf-osx
-		CCPATH=$CC/bin/bin/arm-linux-gnueabihf-gcc
+		CROSSCOMPILER=$OPT_DIRECTORY/arm-linux-gnueabihf-osx
+		CROSSCOMPILERPATH=$CROSSCOMPILER/bin/bin/arm-linux-gnueabihf-gcc
 	else
-		wget $WGET_OPTS http://blueocean.qmh-project.org/gcc-4.7-linaro-rpi-gnueabihf.tbz || error 4
+		wget $WGET_OPT http://blueocean.qmh-project.org/gcc-4.7-linaro-rpi-gnueabihf.tbz || error 4
 		tar -xf gcc-4.7-linaro-rpi-gnueabihf.tbz || error 5
-		CCPATH=$CC/bin/arm-linux-gnueabihf-gcc
+		CROSSCOMPILERPATH=$CROSSCOMPILER/bin/arm-linux-gnueabihf-gcc
 	fi
 
-	if [ ! -d $CCT/.git ]; then
-		git clone $CC_GIT || error 4
+	if [ ! -d $CROSSCOMPILETOOLS/.git ]; then
+		git clone $CROSSCOMPILEGIT || error 4
 	else
-		cd $CCT && git pull && cd $OPT
+		cd $CROSSCOMPILETOOLS && git pull && cd $OPT_DIRECTORY
 	fi
 	echo "Cross Compilation tools downloaded and extracted"
 }
 
 function dlqt {
 	echo "Cloning QT Code"
-	cd $OPT
-	if [ ! -d $OPT/qt5/.git ]; then
+	cd $OPT_DIRECTORY
+	if [ ! -d $OPT_DIRECTORY/qt5/.git ]; then
 		git clone $QT_GIT || error 6
 	else
-		cd $OPT/qt5/ && git pull 
-		cd $CCT
+		cd $OPT_DIRECTORY/qt5/ && git pull 
+		cd $CROSSCOMPILETOOLS
 		./syncQt5
-		cd $OPT
+		cd $OPT_DIRECTORY
 	fi
 	cd qt5
-	while [ ! -e $OPT/qt5/.initialised ]
+	while [ ! -e $OPT_DIRECTORY/qt5/.initialised ]
 	do
-		./init-repository $INITREPOARGS && touch $OPT/qt5/.initialised
+		./init-repository $INITREPOARGS && touch $OPT_DIRECTORY/qt5/.initialised
 	done || error 7
 	echo "Code cloned"
-	#cd $OPT/qt5/qtjsbackend
+	#cd $OPT_DIRECTORY/qt5/qtjsbackend
 	#git fetch https://codereview.qt-project.org/p/qt/qtjsbackend refs/changes/56/27256/4 && git cherry-pick FETCH_HEAD
 }
 
 function prepcctools {
-	cd $CCT
+	cd $CROSSCOMPILETOOLS
 	echo "Fixing Qualified Library Paths, whatever that means..."
-	./fixQualifiedLibraryPaths $ROOTFS $CCPATH || error 8
-	cd $OPT/qt5/qtbase
+	./fixQualifiedLibraryPaths $ROOTFS $CROSSCOMPILERPATH || error 8
+	cd $OPT_DIRECTORY/qt5/qtbase
 }
 
 function configureandmakeqtbase {
 	echo "Configuring QT Base"
 	
-	CONFIGURE_OPTIONS="-opengl es2 -device linux-rasp-pi-g++ -device-option CROSS_COMPILE=$CC/bin/arm-linux-gnueabihf- -sysroot $ROOTFS -opensource -confirm-license -optimized-qmake -release -make libs -prefix /usr/local/qt5pi -no-pch"
+	CONFIGURE_OPTIONS="-opengl es2 -device linux-rasp-pi-g++ -device-OPT_DIRECTORYion CROSS_COMPILE=$CROSSCOMPILER/bin/arm-linux-gnueabihf- -sysroot $ROOTFS -opensource -confirm-license -OPT_DIRECTORYimized-qmake -release -make libs -prefix /usr/local/qt5pi -no-pch"
 
 	if [ ! -f /etc/redhat-release ]
 	then
 		CONFIGURE_OPTIONS="$CONFIGURE_OPTIONS -reduce-exports -reduce-relocations"
 	fi
 	
-	cd $OPT/qt5/qtbase
+	cd $OPT_DIRECTORY/qt5/qtbase
 	if [ "$CONFCLEAN" == 1 ]; then
 		echo "Cleaning first"
-		rm -f $OPT/qt5/qtbase/.CONFIGURED
-		cd $OPT/qt5/qtbase
+		rm -f $OPT_DIRECTORY/qt5/qtbase/.CONFIGURED
+		cd $OPT_DIRECTORY/qt5/qtbase
 		make confclean
 	fi
-	if [ ! -e $OPT/qt5/qtbase/.CONFIGURED ]; then
-		./configure $CONFIGURE_OPTIONS && touch $OPT/qt5/qtbase/.CONFIGURED || error 9
+	if [ ! -e $OPT_DIRECTORY/qt5/qtbase/.CONFIGURED ]; then
+		./configure $CONFIGURE_OPTIONS && touch $OPT_DIRECTORY/qt5/qtbase/.CONFIGURED || error 9
 	fi
 	echo "Making QT Base"
 	make -j $CORES || error 10
@@ -328,7 +328,7 @@ function configureandmakeqtbase {
 
 function installqtbase {
 	echo "Installing QT Base"
-	cd $OPT/qt5/qtbase
+	cd $OPT_DIRECTORY/qt5/qtbase
 	if [ "$(id -u)" != "0" ]; then
 		sudo make install
 		sudo cp -r /usr/local/qt5pi/mkspecs/ $ROOTFS/usr/local/qt5pi/
@@ -344,16 +344,16 @@ function makemodules {
 	for i in $QT_COMPILE_LIST
 	do
 		if [ "$(id -u)" != "0" ]; then
-			cd $OPT/qt5/$i && echo "Building $i" && sleep 3 && /usr/local/qt5pi/bin/qmake . && make -j $CORES && sudo make install && touch .COMPILED
+			cd $OPT_DIRECTORY/qt5/$i && echo "Building $i" && sleep 3 && /usr/local/qt5pi/bin/qmake . && make -j $CORES && sudo make install && touch .COMPILED
 		else
-			cd $OPT/qt5/$i && echo "Building $i" && sleep 3 && /usr/local/qt5pi/bin/qmake . && make -j $CORES && make install && touch .COMPILED
+			cd $OPT_DIRECTORY/qt5/$i && echo "Building $i" && sleep 3 && /usr/local/qt5pi/bin/qmake . && make -j $CORES && make install && touch .COMPILED
 		fi
-		cd $OPT/qt5/
+		cd $OPT_DIRECTORY/qt5/
 	done
 	
 	for i in $QT_COMPILE_LIST
 	do
-		if [ -e "$OPT/qt5/$i/.COMPILED" ]
+		if [ -e "$OPT_DIRECTORY/qt5/$i/.COMPILED" ]
 		then
 			echo "Compiled $i"
 		else
@@ -365,8 +365,8 @@ function makemodules {
 
 #Start of script
 
-mkdir -p $OPT || error 1
-cd $OPT || error 1
+mkdir -p $OPT_DIRECTORY || error 1
+cd $OPT_DIRECTORY || error 1
 
 downloadAndMountPi
 dlcc
@@ -378,7 +378,7 @@ makemodules
 
 if [ "$OSTYPE" == "darwin12" ]
 then
-	cd $OPT
+	cd $OPT_DIRECTORY
 	tar xcf qt5pi.tgz $ROOTFS/usr/local/qt5pi
 	echo "Copy qt5pi.tgz to your pi and extract in /"
 fi
