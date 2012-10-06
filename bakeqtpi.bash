@@ -131,8 +131,6 @@ do
 	shift
 done
 
-echo "Using Raspbian image at $CUSTOM_RASPBIAN"
-
 if [ "$GIT" == "HTTPS" ]; then
 	CC_GIT="https://git."$CC_GIT
 	QT_GIT="https://git."$QT_GIT
@@ -205,6 +203,8 @@ function downloadAndMountPi {
 	else
 		RASPBIAN_IMG=$CUSTOM_RASPBIAN
 	fi
+
+	echo "Using Raspbian image at $CUSTOM_RASPBIAN"
 
 	echo "Mounting raspbian image"
 
