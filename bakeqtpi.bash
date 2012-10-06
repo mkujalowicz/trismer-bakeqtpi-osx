@@ -320,16 +320,6 @@ function makemodules {
 		cd $OPT/qt5/$i && echo "Building $i" && sleep 3 && /usr/local/qt5pi/bin/qmake . && make -j $CORES && sudo make install && touch .COMPILED
 		cd $OPT/qt5/
 	done
-
-#	cd $OPT/qt5/qtdeclarative/tools/qmlscene
-#	/usr/local/qt5pi/bin/qmake .
-#	make -j $CORES
-#	sudo make install
-#
-#	cd $OPT/qt5/qtdeclarative/examples/demos/samegame
-#        /usr/local/qt5pi/bin/qmake .
-#        make -j $CORES
-#        sudo make install
 	
 	for i in $QT_COMPILE_LIST
 	do
