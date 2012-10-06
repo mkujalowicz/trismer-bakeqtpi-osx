@@ -54,7 +54,11 @@ CORES=`echo $CORES | grep '^[[:digit:]]*$'`
 if [ "$CORES" == "" ]
 then
   CORES=1
+  echo "CPU Core count failed, defaulting to single thread compilation"
+else
+  echo "Using $CORES threads for compilation"
 fi
+
 
 #Parse arguments
 while test $# -gt 0
@@ -174,6 +178,7 @@ function downloadAndMountPi {
 	cd $OPT
 
 	if [ "$CUSTOM_RASPBIAN" == "" ]; then
+		echo "Downloading Raspbian"
 		if [ "$TORRENT" == 1 ]; then
 			dl="T"
 		elif [ "$HTTPPI" == 1 ];then
@@ -201,12 +206,14 @@ function downloadAndMountPi {
 		RASPBIAN_IMG=$CUSTOM_RASPBIAN
 	fi
 
+	echo "Mounting raspbian image"
+
         if [ "$OSTYPE" == "darwin12" ]
         then
 		if [ -d $MOUNT ]; then
 			hdiutil detach $MOUNT
 		fi
-	        echo "hdiutil attach -mountpoint $SCRIPT_DIR $MOUNT $RASPBIAN_IMG"
+	        #echo "hdiutil attach -mountpoint $SCRIPT_DIR $MOUNT $RASPBIAN_IMG"
         	DISK=`hdiutil attach -mountpoint $MOUNT $RASPBIAN_IMG | grep Linux | awk '{print $1}'`
         	if [[ ! "$DISK" =~ /dev/disk* ]]; then 
 			error 3
@@ -227,11 +234,13 @@ function downloadAndMountPi {
 		fi
 		sudo mount -o loop,offset=62914560 $RASPBIAN_IMG $ROOTFS || error 3
 	fi
+	echo "Raspbian mounted"
 }
 
 #Download and extract cross compiler and tools
 function dlcc {
 	cd $OPT
+	echo "Downloading Cross compiler and extra tools"
 	if [ "$OSTYPE" == "darwin12" ]
 	then
 		wget $WGET_OPTS http://trismer.com/downloads/arm-linux-gnueabihf-osx-2012-08-28.tar.gz || error 4
@@ -249,9 +258,11 @@ function dlcc {
 	else
 		cd $CCT && git pull && cd $OPT
 	fi
+	echo "Cross Compilation tools downloaded and extracted"
 }
 
 function dlqt {
+	echo "Cloning QT Code"
 	cd $OPT
 	if [ ! -d $OPT/qt5/.git ]; then
 		git clone $QT_GIT || error 6
@@ -266,19 +277,23 @@ function dlqt {
 	do
 		./init-repository $INITREPOARGS && touch $OPT/qt5/.initialised
 	done || error 7
-	cd $OPT/qt5/qtjsbackend
+	echo "Code cloned"
+	#cd $OPT/qt5/qtjsbackend
 	#git fetch https://codereview.qt-project.org/p/qt/qtjsbackend refs/changes/56/27256/4 && git cherry-pick FETCH_HEAD
 }
 
 function prepcctools {
 	cd $CCT
+	echo "Fixing Qualified Library Paths, whatever that means..."
 	./fixQualifiedLibraryPaths $ROOTFS $CCPATH || error 8
 	cd $OPT/qt5/qtbase
 }
 
 function configureandmakeqtbase {
+	echo "Configuring QT Base"
 	cd $OPT/qt5/qtbase
 	if [ "$CONFCLEAN" == 1 ]; then
+		echo "Cleaning first"
 		rm -f $OPT/qt5/qtbase/.CONFIGURED
 		cd $OPT/qt5/qtbase
 		make confclean
@@ -286,16 +301,20 @@ function configureandmakeqtbase {
 	if [ ! -e $OPT/qt5/qtbase/.CONFIGURED ]; then
 		./configure -opengl es2 -device linux-rasp-pi-g++ -device-option CROSS_COMPILE=$CC/bin/arm-linux-gnueabihf- -sysroot $ROOTFS -opensource -confirm-license -optimized-qmake -reduce-relocations -reduce-exports -release -make libs -prefix /usr/local/qt5pi -no-pch && touch $OPT/qt5/qtbase/.CONFIGURED || error 9
 	fi
+	echo "Making QT Base"
 	make -j $CORES || error 10
 }
 
 function installqtbase {
+	echo "Installing QT Base"
 	cd $OPT/qt5/qtbase
 	sudo make install
 	sudo cp -r /usr/local/qt5pi/mkspecs/ $ROOTFS/usr/local/qt5pi/
+	echo "QT Base Installed"
 }
 
 function makemodules {
+	echo "Making QT Modules $QT_COMPILE_LIST"
 	for i in $QT_COMPILE_LIST
 	do
 		cd $OPT/qt5/$i && echo "Building $i" && sleep 3 && /usr/local/qt5pi/bin/qmake . && make -j $CORES && sudo make install && touch .COMPILED
@@ -322,6 +341,8 @@ function makemodules {
 		fi
 	done
 }
+
+
 #Start of script
 
 mkdir -p $OPT || error 1
