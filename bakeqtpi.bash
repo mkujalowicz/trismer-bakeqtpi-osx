@@ -25,6 +25,10 @@ CUSTOM_RASPBIAN=""
 
 WGET_OPTS="-nc -c"
 
+
+#Debugfs path
+DEBUGFS=/usr/local/Cellar/e2fsprogs/*/sbin/debugfs
+
 #Git repos
 CC_GIT="gitorious.org/cross-compile-tools/cross-compile-tools.git"
 QT_GIT="gitorious.org/qt/qt5.git"
@@ -32,10 +36,22 @@ GIT=GIT
 
 INITREPOARGS="--no-webkit -f"
 
+#Basically, a list of all the folders in the checked out qt5 repo to cd into and build. qtbase will already be done by this point
 QT_COMPILE_LIST="qtimageformats qtsvg qtjsbackend qtscript qtxmlpatterns qtdeclarative qtsensors qt3d qtgraphicaleffects qtlocation qtquick1 qtsystems qtmultimedia"
 
-CORES=`grep -c '^processor' /proc/cpuinfo`
-if [ $CORES -eq 0 ]
+
+
+#Work out how many concurrent threads to run
+if [ "$OSTYPE" == "darwin12" ]
+then
+	CORES=`sysctl -a | grep machdep.cpu.thread_count | awk '{print $2}'`
+else
+	CORES=`grep -c '^processor' /proc/cpuinfo`
+fi
+
+CORES=`echo $CORES | grep '^[[:digit:]]*$'`
+	
+if [ "$CORES" == "" ]
 then
   CORES=1
 fi
@@ -153,6 +169,7 @@ function error {
 	exit -1
 }
 
+#Download and mount the Raspbian image, tested on OS X and Ubuntu
 function downloadAndMountPi {
 	cd $OPT
 
@@ -184,14 +201,14 @@ function downloadAndMountPi {
 		RASPBIAN_IMG=$CUSTOM_RASPBIAN
 	fi
 
-        if ["$OSTYPE" == "Darwin12"]
+        if [ "$OSTYPE" == "darwin12" ]
         then
 		if [ -d $MOUNT ]; then
 			hdiutil detach $MOUNT
 		fi
 	        echo "hdiutil attach -mountpoint $SCRIPT_DIR $MOUNT $RASPBIAN_IMG"
-        	DISK=hdiutil attach -mountpoint $MOUNT $RASPBIAN_IMG | grep Linux | awk '{print $1}'
-        	if [[ "$DISK" =~ /dev/disk* ]]; then 
+        	DISK=`hdiutil attach -mountpoint $MOUNT $RASPBIAN_IMG | grep Linux | awk '{print $1}'`
+        	if [[ ! "$DISK" =~ /dev/disk* ]]; then 
 			error 3
 		fi
 		echo "rdump lib $ROOTFS" > $OPT/rdump.lst
@@ -200,8 +217,8 @@ function downloadAndMountPi {
         	echo "rdump var $ROOTFS" >> $OPT/rdump.lst
         	if [ ! -d $ROOTFS ]; then
         		mkdir $ROOTFS
-        		$DEBUGFS -f $OPT/rdump.lst $DISK || error 3
-        	fi
+		fi
+            	sudo $DEBUGFS -f $OPT/rdump.lst $DISK || error 3
 	else
 		if [ ! -d $ROOTFS ]; then
 			sudo mkdir $ROOTFS || error 3
@@ -215,7 +232,7 @@ function downloadAndMountPi {
 #Download and extract cross compiler and tools
 function dlcc {
 	cd $OPT
-	if ["$OSTYPE" == "Darwin12"]
+	if [ "$OSTYPE" == "darwin12" ]
 	then
 		wget $WGET_OPTS http://trismer.com/downloads/arm-linux-gnueabihf-osx-2012-08-28.tar.gz || error 4
 		tar -xf arm-linux-gnueabihf-osx-2012-08-28.tar.gz || error 5
@@ -317,3 +334,10 @@ prepcctools
 configureandmakeqtbase
 installqtbase
 makemodules
+
+if [ "$OSTYPE" == "darwin12" ]
+then
+	cd $OPT
+	tar xcf qt5pi.tgz $ROOTFS/usr/local/qt5pi
+	echo "Copy qt5pi.tgz to your pi and extract in /"
+fi
