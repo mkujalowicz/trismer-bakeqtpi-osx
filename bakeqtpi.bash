@@ -2,17 +2,20 @@
 #This script will download, set up, compile QT5, and set up the SDCard image ready to use.
 #Pass -h to use https for git
 
+
 SCRIPT_DIR=$PWD
 OPT=~/opt
+QTBASE=$OPT/qt5
+
+#Some sensible defaults
 CC=$OPT/gcc-4.7-linaro-rpi-gnueabihf
 CCT=$OPT/cross-compile-tools
+CCPATH=$CC/bin/arm-linux-gnueabihf-gcc
+
 MOUNT=$OPT/rasp-pi-image
 ROOTFS=$OPT/rasp-pi-rootfs
 
-QTBASE=$OPT/qt5
-
-CCPATH=$CC/bin/arm-linux-gnueabihf-gcc
-
+#Raspbian image and download stuff
 RASPBIAN=2012-09-18-wheezy-raspbian
 
 RASPBIAN_HTTP=http://ftp.snt.utwente.nl/pub/software/rpi/images/raspbian/$RASPBIAN/$RASPBIAN.zip
@@ -22,9 +25,11 @@ CUSTOM_RASPBIAN=""
 
 WGET_OPTS="-nc -c"
 
+#Git repos
 CC_GIT="gitorious.org/cross-compile-tools/cross-compile-tools.git"
 QT_GIT="gitorious.org/qt/qt5.git"
 GIT=GIT
+
 INITREPOARGS="--no-webkit -f"
 
 QT_COMPILE_LIST="qtimageformats qtsvg qtjsbackend qtscript qtxmlpatterns qtdeclarative qtsensors qt3d qtgraphicaleffects qtlocation qtquick1 qtsystems qtmultimedia"
@@ -212,12 +217,12 @@ function dlcc {
 	cd $OPT
 	if ["$OSTYPE" == "Darwin12"]
 	then
-		wget -c http://trismer.com/downloads/arm-linux-gnueabihf-osx-2012-08-28.tar.gz || error 4
+		wget $WGET_OPTS http://trismer.com/downloads/arm-linux-gnueabihf-osx-2012-08-28.tar.gz || error 4
 		tar -xf arm-linux-gnueabihf-osx-2012-08-28.tar.gz || error 5
 		CC=$OPT/arm-linux-gnueabihf-osx
 		CCPATH=$CC/bin/bin/arm-linux-gnueabihf-gcc
 	else
-		wget -c http://blueocean.qmh-project.org/gcc-4.7-linaro-rpi-gnueabihf.tbz || error 4
+		wget $WGET_OPTS http://blueocean.qmh-project.org/gcc-4.7-linaro-rpi-gnueabihf.tbz || error 4
 		tar -xf gcc-4.7-linaro-rpi-gnueabihf.tbz || error 5
 		CCPATH=$CC/bin/arm-linux-gnueabihf-gcc
 	fi
