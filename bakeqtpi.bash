@@ -26,6 +26,8 @@ CUSTOM_RASPBIAN=""
 WGET_OPTS="-nc -c"
 
 
+command -v sudo >/dev/null 2>&1 || {echo "Sudo needs to be installed for the fixQualifiedLibraryPaths script to work"; exit 1}
+
 #Debugfs path
 DEBUGFS=/usr/local/Cellar/e2fsprogs/*/sbin/debugfs
 
