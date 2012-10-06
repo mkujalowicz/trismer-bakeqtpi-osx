@@ -228,11 +228,23 @@ function downloadAndMountPi {
             	sudo $DEBUGFS -f $OPT/rdump.lst $DISK || error 3
 	else
 		if [ ! -d $ROOTFS ]; then
-			sudo mkdir $ROOTFS || error 3
+			if [ "$(id -u)" != "0" ]; then
+				sudo mkdir $ROOTFS || error 3
+			else
+				mkdir $ROOTFS || error 3
+			fi
 		else
-			sudo umount $ROOTFS
+			if [ "$(id -u)" != "0" ]; then
+				sudo umount $ROOTFS
+			else
+				umount $ROOTFS
+			fi
 		fi
-		sudo mount -o loop,offset=62914560 $RASPBIAN_IMG $ROOTFS || error 3
+		if [ "$(id -u)" != "0" ]; then
+			sudo mount -o loop,offset=62914560 $RASPBIAN_IMG $ROOTFS || error 3
+		else
+			mount -o loop,offset=62914560 $RASPBIAN_IMG $ROOTFS || error 3
+		fi
 	fi
 	echo "Raspbian mounted"
 }
@@ -308,8 +320,13 @@ function configureandmakeqtbase {
 function installqtbase {
 	echo "Installing QT Base"
 	cd $OPT/qt5/qtbase
-	sudo make install
-	sudo cp -r /usr/local/qt5pi/mkspecs/ $ROOTFS/usr/local/qt5pi/
+	if [ "$(id -u)" != "0" ]; then
+		sudo make install
+		sudo cp -r /usr/local/qt5pi/mkspecs/ $ROOTFS/usr/local/qt5pi/
+	else
+		make install
+		cp -r /usr/local/qt5pi/mkspecs/ $ROOTFS/usr/local/qt5pi/
+	fi
 	echo "QT Base Installed"
 }
 
@@ -317,7 +334,11 @@ function makemodules {
 	echo "Making QT Modules $QT_COMPILE_LIST"
 	for i in $QT_COMPILE_LIST
 	do
-		cd $OPT/qt5/$i && echo "Building $i" && sleep 3 && /usr/local/qt5pi/bin/qmake . && make -j $CORES && sudo make install && touch .COMPILED
+		if [ "$(id -u)" != "0" ]; then
+			cd $OPT/qt5/$i && echo "Building $i" && sleep 3 && /usr/local/qt5pi/bin/qmake . && make -j $CORES && sudo make install && touch .COMPILED
+		else
+			cd $OPT/qt5/$i && echo "Building $i" && sleep 3 && /usr/local/qt5pi/bin/qmake . && make -j $CORES && make install && touch .COMPILED
+		fi
 		cd $OPT/qt5/
 	done
 	
