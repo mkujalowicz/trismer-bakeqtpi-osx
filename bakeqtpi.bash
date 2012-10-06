@@ -65,12 +65,12 @@ fi
 while test $# -gt 0
 do
 	case $1 in
-		# Normal OPT_DIRECTORYion processing
+		# Normal option processing
 		-h | --help)
 			# usage and help
 			echo "Usage:"
-			echo "		./bakeqtpi.bash [OPT_DIRECTORYions]"
-			echo "OPT_DIRECTORYions:"
+			echo "		./bakeqtpi.bash [options]"
+			echo "options:"
 			echo "		--http			Tells git and init-repository to use http(s)"
 			echo "		--httppi 		Tells the script to download the Raspbian image using http/wget"
 			echo "		--torrentpi		Tells the script to download the Raspbian image using torrent/ctorrent"
@@ -108,14 +108,14 @@ do
 			break
 			;;
 		--*)
-			# error unknown (long) OPT_DIRECTORYion $1
+			# error unknown (long) option $1
 			;;
 		-?)
-			# error unknown (short) OPT_DIRECTORYion $1
+			# error unknown (short) option $1
 			;;
 	
 		# FUN STUFF HERE:
-		# Split apart combined short OPT_DIRECTORYions
+		# Split apart combined short options
 		-*)
 			split=$1
 			shift
@@ -123,7 +123,7 @@ do
 			continue
 			;;
 	
-		# Done with OPT_DIRECTORYions
+		# Done with options
 		*)
 			break
 			;;
@@ -220,7 +220,7 @@ function downloadAndMountPi {
 			error 3
 		fi
 		echo "rdump lib $ROOTFS" > $OPT_DIRECTORY/rdump.lst
-        	echo "rdump OPT_DIRECTORY $ROOTFS" >> $OPT_DIRECTORY/rdump.lst
+        	echo "rdump opt $ROOTFS" >> $OPT_DIRECTORY/rdump.lst
         	echo "rdump usr $ROOTFS" >> $OPT_DIRECTORY/rdump.lst
         	echo "rdump var $ROOTFS" >> $OPT_DIRECTORY/rdump.lst
         	if [ ! -d $ROOTFS ]; then
@@ -305,7 +305,7 @@ function prepcctools {
 function configureandmakeqtbase {
 	echo "Configuring QT Base"
 	
-	CONFIGURE_OPTIONS="-opengl es2 -device linux-rasp-pi-g++ -device-OPT_DIRECTORYion CROSS_COMPILE=$CROSSCOMPILER/bin/arm-linux-gnueabihf- -sysroot $ROOTFS -opensource -confirm-license -OPT_DIRECTORYimized-qmake -release -make libs -prefix /usr/local/qt5pi -no-pch"
+	CONFIGURE_OPTIONS="-opengl es2 -device linux-rasp-pi-g++ -device-option CROSS_COMPILE=$CROSSCOMPILER/bin/arm-linux-gnueabihf- -sysroot $ROOTFS -opensource -confirm-license -optimized-qmake -release -make libs -prefix /usr/local/qt5pi -no-pch"
 
 	if [ ! -f /etc/redhat-release ]
 	then
