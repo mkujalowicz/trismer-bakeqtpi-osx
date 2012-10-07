@@ -34,7 +34,13 @@ command -v sudo >/dev/null 2>&1 || { echo >&2  "Sudo needs to be installed for t
 DEBUGFS=/usr/local/Cellar/e2fsprogs/*/sbin/debugfs
 
 #Git repos
-CROSSCOMPILEGIT="gitorious.org/~trismer/cross-compile-tools/trismers-cross-compile-tools-osx.git"
+if [[ "$OSTYPE" =~ darwin.* ]]
+then
+	CROSSCOMPILEGIT="gitorious.org/~trismer/cross-compile-tools/trismers-cross-compile-tools-osx.git"
+else
+	CROSSCOMPILEGIT="gitorious.org/cross-compile-tools/cross-compile-tools.git "
+fi
+
 QT_GIT="gitorious.org/qt/qt5.git"
 GIT=GIT
 
