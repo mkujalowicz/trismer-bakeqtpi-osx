@@ -350,7 +350,7 @@ function makemodules {
 	for i in $QT_COMPILE_LIST
 	do
 		if [ "$(id -u)" != "0" ]; then
-			cd $OPT_DIRECTORY/qt5/$i && echo "Building $i" && sleep 3 && $QT5PIPREFIX/bin/qmake . && make -j $CORES && make install && touch .COMPILED
+			cd $OPT_DIRECTORY/qt5/$i && echo "Building $i" && sleep 3 && $QT5PIPREFIX/bin/qmake . && make -j $CORES && sudo make install && touch .COMPILED
 		else
 			cd $OPT_DIRECTORY/qt5/$i && echo "Building $i" && sleep 3 && $QT5PIPREFIX/bin/qmake . && make -j $CORES && make install && touch .COMPILED
 		fi
@@ -360,7 +360,7 @@ function makemodules {
 	cd $OPT_DIRECTORY/qt5/qtdeclarative/examples/demos/samegame
         $QT5PIPREFIX/bin/qmake .
         make -j $CORES
-        make install
+        sudo make install
 	
 	for i in $QT_COMPILE_LIST
 	do
