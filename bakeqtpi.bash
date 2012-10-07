@@ -12,11 +12,11 @@ CROSSCOMPILER=$OPT_DIRECTORY/arm-linux-gnueabihf-osx
 CROSSCOMPILETOOLS=$OPT_DIRECTORY/trismers-cross-compile-tools-osx
 CROSSCOMPILERPATH=$CROSSCOMPILER/bin/arm-linux-gnueabihf-gcc
 
-QT5PIPREFIX=$OPT_DIRECTORY/qt5pi
-QT5ROOTFS=$ROOTFS/$QT5PIPREFIX
-
 MOUNT=$OPT_DIRECTORY/rasp-pi-image
 ROOTFS=$OPT_DIRECTORY/rasp-pi-rootfs
+
+QT5PIPREFIX=/usr/local/qt5pi
+QT5ROOTFSPREFIX=$ROOTFS/usr/local/qt5pi
 
 #Raspbian image and download stuff
 RASPBIAN=2012-09-18-wheezy-raspbian
@@ -46,7 +46,7 @@ QT_COMPILE_LIST="qtimageformats qtsvg qtjsbackend qtscript qtxmlpatterns qtdecla
 CONFIGURE_OPTIONS=""
 
 #Work out how many concurrent threads to run
-if [ "$OSTYPE" == "darwin12" ]
+if [[ "$OSTYPE" =~ darwin.* ]]
 then
 	CORES=`sysctl -a | grep machdep.cpu.thread_count | awk '{print $2}'`
 else
@@ -212,7 +212,7 @@ function downloadAndMountPi {
 
 	echo "Mounting raspbian image"
 
-        if [ "$OSTYPE" == "darwin12" ]
+        if [[ "$OSTYPE" =~ darwin.* ]]
         then
 		if [ -d $MOUNT ]; then
 			hdiutil detach $MOUNT
@@ -228,8 +228,8 @@ function downloadAndMountPi {
         	echo "rdump var $ROOTFS" >> $OPT_DIRECTORY/rdump.lst
         	if [ ! -d $ROOTFS ]; then
         		mkdir $ROOTFS
+                $DEBUGFS -f $OPT_DIRECTORY/rdump.lst $DISK || error 3
 		fi
-            	$DEBUGFS -f $OPT_DIRECTORY/rdump.lst $DISK || error 3
 	else
 		if [ ! -d $ROOTFS ]; then
 			if [ "$(id -u)" != "0" ]; then
@@ -257,12 +257,15 @@ function downloadAndMountPi {
 function dlcc {
 	cd $OPT_DIRECTORY
 	echo "Downloading Cross compiler and extra tools"
-	if [ "$OSTYPE" == "darwin12" ]
+	if [[ "$OSTYPE" =~ darwin.* ]]
 	then
 		wget $WGET_OPT http://trismer.com/downloads/arm-linux-gnueabihf-osx-2012-08-28.tar.gz || error 4
 		tar -xf arm-linux-gnueabihf-osx-2012-08-28.tar.gz || error 5
 		CROSSCOMPILER=$OPT_DIRECTORY/arm-linux-gnueabihf-osx
 		CROSSCOMPILERPATH=$CROSSCOMPILER/bin/arm-linux-gnueabihf-gcc
+        #create symbolic link for readelf
+        ln -s $CROSSCOMPILER/bin/arm-linux-gnueabihf-readelf readelf
+        export PATH=$OPT_DIRECTORY:$PATH
 	else
 		wget $WGET_OPT http://blueocean.qmh-project.org/gcc-4.7-linaro-rpi-gnueabihf.tbz || error 4
 		tar -xf gcc-4.7-linaro-rpi-gnueabihf.tbz || error 5
@@ -308,7 +311,7 @@ function prepcctools {
 function configureandmakeqtbase {
 	echo "Configuring QT Base"
 	
-	CONFIGURE_OPTIONS="-opengl es2 -device linux-rasp-pi-g++ -device-option CROSS_COMPILE=$CROSSCOMPILER/bin/arm-linux-gnueabihf- -sysroot $ROOTFS -opensource -confirm-license -optimized-qmake -release -make libs -prefix QT5PIPREFIX -no-pch"
+	CONFIGURE_OPTIONS="-opengl es2 -device linux-rasp-pi-g++ -device-option CROSS_COMPILE=$CROSSCOMPILER/bin/arm-linux-gnueabihf- -sysroot $ROOTFS -opensource -confirm-license -optimized-qmake -release -make libs -prefix $QT5PIPREFIX -no-pch"
 
 	if [ ! -f /etc/redhat-release ]
 	then
@@ -333,11 +336,11 @@ function installqtbase {
 	echo "Installing QT Base"
 	cd $OPT_DIRECTORY/qt5/qtbase
 	if [ "$(id -u)" != "0" ]; then
-		make install
-		cp -r QT5PIPREFIX/mkspecs/ $ROOTFS/usr/local/qt5pi/
+		sudo make install
+		sudo cp -r $QT5PIPREFIX/mkspecs/ $QT5ROOTFSPREFIX/
 	else
 		make install
-		cp -r QT5PIPREFIX/mkspecs/ $ROOTFS/usr/local/qt5pi/
+		cp -r $QT5PIPREFIX/mkspecs/ $QT5ROOTFSPREFIX/
 	fi
 	echo "QT Base Installed"
 }
@@ -347,17 +350,17 @@ function makemodules {
 	for i in $QT_COMPILE_LIST
 	do
 		if [ "$(id -u)" != "0" ]; then
-			cd $OPT_DIRECTORY/qt5/$i && echo "Building $i" && sleep 3 && QT5PIPREFIX/bin/qmake . && make -j $CORES && make install && touch .COMPILED
+			cd $OPT_DIRECTORY/qt5/$i && echo "Building $i" && sleep 3 && $QT5PIPREFIX/bin/qmake . && make -j $CORES && make install && touch .COMPILED
 		else
-			cd $OPT_DIRECTORY/qt5/$i && echo "Building $i" && sleep 3 && QT5PIPREFIX/bin/qmake . && make -j $CORES && make install && touch .COMPILED
+			cd $OPT_DIRECTORY/qt5/$i && echo "Building $i" && sleep 3 && $QT5PIPREFIX/bin/qmake . && make -j $CORES && make install && touch .COMPILED
 		fi
 		cd $OPT_DIRECTORY/qt5/
 	done
 
-#	cd $OPT_DIRECTORY/qt5/qtdeclarative/examples/demos/samegame
-#        $QT5PIPREFIX/bin/qmake .
-#        make -j $CORES
-#        make install
+	cd $OPT_DIRECTORY/qt5/qtdeclarative/examples/demos/samegame
+        $QT5PIPREFIX/bin/qmake .
+        make -j $CORES
+        make install
 	
 	for i in $QT_COMPILE_LIST
 	do
@@ -371,28 +374,12 @@ function makemodules {
 }
 
 function copyToImage {
-    cd $QT5ROOTFS
-    rm $OPT/writeToImage
-    rm $OPT/writeToImage1
-    echo "mkdir /usr/local/qt5pi"
-    find . -type d | while read i;
-    do
-    echo "mkdir /usr/local/qt5pi/$i" >> $OPT/writeToImage
-    done
-    find . -type f | while read i;
-    do
-    filePath=$(dirname $i)
-    fileName=$(basename $i)
-    echo "cd /usr/local/qt5pi/$filePath" >> $OPT/writeToImage
-    echo "write $QT5ROOTFS/$i $fileName" >> $OPT/writeToImage
-    done
-    find . -type l | while read i;
-    do
-    linkPath=$(dirname $i)
-    linkDest=$(readlink $i)
-    echo "cd /usr/local/qt5pi/$linkPath" >> $OPT/writeToImage1
-    echo "ln $linkDest /usr/local/qt5pi/$i" >> $OPT/writeToImage1
-    done
+    if [[ "$OSTYPE" =~ darwin.* ]]
+    then
+        cd $ROOTFS
+        tar -czf $OPT_DIRECTORY/qt5pi.tgz usr/local/qt5pi
+        echo "Extract qt5pi.tgz on your pi at /"
+    fi
 }
 
 #Start of script
