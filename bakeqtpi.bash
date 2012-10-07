@@ -337,10 +337,10 @@ function installqtbase {
 	cd $OPT_DIRECTORY/qt5/qtbase
 	if [ "$(id -u)" != "0" ]; then
 		sudo make install
-		sudo cp -r $QT5PIPREFIX/mkspecs/ $QT5ROOTFSPREFIX/
+		sudo cp -r $QT5PIPREFIX/mkspecs $QT5ROOTFSPREFIX/
 	else
 		make install
-		cp -r $QT5PIPREFIX/mkspecs/ $QT5ROOTFSPREFIX/
+		cp -r $QT5PIPREFIX/mkspecs $QT5ROOTFSPREFIX/
 	fi
 	echo "QT Base Installed"
 }
@@ -378,7 +378,12 @@ function copyToImage {
     then
         cd $ROOTFS
         tar -czf $OPT_DIRECTORY/qt5pi.tgz usr/local/qt5pi
+        echo "Adding qt5pi.tgz to the Raspbian image at /"
+        $DEBUGFS -w -R "rm qt5pi.tgz" $DISK
+        $DEBUGFS -w -R "write $OPT_DIRECTORY/qt5pi.tgz qt5pi.tgz" $DISK
         echo "Extract qt5pi.tgz on your pi at /"
+        echo "Unmounting image"
+        hdiutil detach $MOUNT
     fi
 }
 
