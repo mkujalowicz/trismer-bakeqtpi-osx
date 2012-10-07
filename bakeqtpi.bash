@@ -8,12 +8,14 @@ OPT_DIRECTORY=~/opt
 QTBASE=$OPT_DIRECTORY/qt5
 
 #Some sensible defaults
-CROSSCOMPILER=$OPT_DIRECTORY/arm-linux-gnueabihf-osx
+
 if [[ "$OSTYPE" =~ darwin.* ]]
 then
 	CROSSCOMPILETOOLS=$OPT_DIRECTORY/trismers-cross-compile-tools-osx
+	CROSSCOMPILER=$OPT_DIRECTORY/arm-linux-gnueabihf-osx
 else 
 	CROSSCOMPILETOOLS=$OPT_DIRECTORY/cross-compile-tools
+	CROSSCOMPILER=$OPT_DIRECTORY/gcc-4.7-linaro-rpi-gnueabihf
 fi
 CROSSCOMPILERPATH=$CROSSCOMPILER/bin/arm-linux-gnueabihf-gcc
 
