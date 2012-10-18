@@ -23,6 +23,7 @@ MOUNT=$OPT_DIRECTORY/rasp-pi-image
 ROOTFS=$OPT_DIRECTORY/rasp-pi-rootfs
 
 QT5PIPREFIX=/usr/local/qt5pi
+QT5PIHOSTPREFIX=$OPT_DIRECTORY/qt5pi
 QT5ROOTFSPREFIX=$ROOTFS/usr/local/qt5pi
 
 #Raspbian image and download stuff
@@ -230,7 +231,6 @@ function downloadAndMountPi {
 		if [ -d $MOUNT ]; then
 			hdiutil detach $MOUNT
 		fi
-	        #echo "hdiutil attach -mountpoint $SCRIPT_DIR $MOUNT $RASPBIAN_IMG"
         	DISK=`hdiutil attach -mountpoint $MOUNT $RASPBIAN_IMG | grep Linux | awk '{print $1}'`
         	if [[ ! "$DISK" =~ /dev/disk* ]]; then 
 			error 3
@@ -324,7 +324,7 @@ function prepcctools {
 function configureandmakeqtbase {
 	echo "Configuring QT Base"
 	
-	CONFIGURE_OPTIONS="-opengl es2 -device linux-rasp-pi-g++ -device-option CROSS_COMPILE=$CROSSCOMPILER/bin/arm-linux-gnueabihf- -sysroot $ROOTFS -opensource -confirm-license -optimized-qmake -release -make libs -prefix $QT5PIPREFIX -no-pch"
+	CONFIGURE_OPTIONS="-opengl es2 -device linux-rasp-pi-g++ -device-option CROSS_COMPILE=$CROSSCOMPILER/bin/arm-linux-gnueabihf- -sysroot $ROOTFS -opensource -confirm-license -optimized-qmake -release -make libs -prefix $QT5PIPREFIX -hostprefix $QT5PIHOSTPREFIX -no-pch"
 
 	if [ ! -f /etc/redhat-release ]
 	then
@@ -348,12 +348,12 @@ function configureandmakeqtbase {
 function installqtbase {
 	echo "Installing QT Base"
 	cd $OPT_DIRECTORY/qt5/qtbase
-	if [ "$(id -u)" != "0" ]; then
+	if [[ "$(id -u)" != "0" && ! "$OSTYPE" =~ darwin.* ]]; then
 		sudo make install
-		sudo cp -r $QT5PIPREFIX/mkspecs $QT5ROOTFSPREFIX/
+		sudo cp -r $QT5PIHOSTPREFIX/mkspecs $QT5ROOTFSPREFIX/
 	else
 		make install
-		cp -r $QT5PIPREFIX/mkspecs $QT5ROOTFSPREFIX/
+		cp -r $QT5PIHOSTPREFIX/mkspecs $QT5ROOTFSPREFIX/
 	fi
 	echo "QT Base Installed"
 }
@@ -362,18 +362,13 @@ function makemodules {
 	echo "Making QT Modules $QT_COMPILE_LIST"
 	for i in $QT_COMPILE_LIST
 	do
-		if [ "$(id -u)" != "0" ]; then
-			cd $OPT_DIRECTORY/qt5/$i && echo "Building $i" && sleep 3 && $QT5PIPREFIX/bin/qmake . && make -j $CORES && sudo make install && touch .COMPILED
+		if [[ "$(id -u)" != "0" && ! "$OSTYPE" =~ darwin.* ]]; then
+			cd $OPT_DIRECTORY/qt5/$i && echo "Building $i" && sleep 3 && $QT5PIHOSTPREFIX/bin/qmake . && make -j $CORES && sudo make install && touch .COMPILED
 		else
-			cd $OPT_DIRECTORY/qt5/$i && echo "Building $i" && sleep 3 && $QT5PIPREFIX/bin/qmake . && make -j $CORES && make install && touch .COMPILED
+			cd $OPT_DIRECTORY/qt5/$i && echo "Building $i" && sleep 3 && $QT5PIHOSTPREFIX/bin/qmake . && make -j $CORES && make install && touch .COMPILED
 		fi
 		cd $OPT_DIRECTORY/qt5/
 	done
-
-	cd $OPT_DIRECTORY/qt5/qtdeclarative/examples/demos/samegame
-        $QT5PIPREFIX/bin/qmake .
-        make -j $CORES
-        sudo make install
 	
 	for i in $QT_COMPILE_LIST
 	do
@@ -401,6 +396,7 @@ function copyToImage {
 }
 
 #Start of script
+
 
 mkdir -p $OPT_DIRECTORY || error 1
 cd $OPT_DIRECTORY || error 1
